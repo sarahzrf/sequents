@@ -37,10 +37,20 @@ unitaggedEntails :: Forms -> Forms -> Sequent
 unitaggedEntails = Entails `on` map {form: _, tag: unit}
 infix 4 unitaggedEntails as |-
 
-unitag :: forall tag. TaggedSequent tag -> Sequent
+data SeqSide = LHS | RHS
+type SeqIx = {side :: SeqSide, ix :: Int}
+
+derive instance eqSeqSide :: Eq SeqSide
+
 -- "ants" = "antecedents", "cqts" = "consequents"
-unitag (Entails ants cqts) = Entails (u ants) (u cqts)
-  where u = map _{tag = unit}
+mapTagsI :: forall tag tag'. (SeqIx -> tag -> tag') ->
+  TaggedSequent tag -> TaggedSequent tag'
+mapTagsI f (Entails ants cqts) = Entails (go LHS ants) (go RHS cqts)
+  where go side = mapWithIndex (\ix p -> p{tag = f {side, ix} p.tag})
+
+mapTags :: forall tag tag'. (tag -> tag') ->
+  TaggedSequent tag -> TaggedSequent tag'
+mapTags = mapTagsI <<< const
 
 -- If we have some end-sequent G |- D, then in general there are three things
 -- we might need in order to specify a choice of (non-Cut, non-Ax)
@@ -73,18 +83,34 @@ data GTag = NewFormG | SideFormG1 | SideFormG2
 derive instance eqNGTag :: Eq NGTag
 derive instance eqGTag :: Eq GTag
 
+-- Eliminators for convenience.
+ngTag :: forall a. a -> a -> NGTag -> a
+ngTag new side NewFormNG  = new
+ngTag new side SideFormNG = side
+
+gTag :: forall a. a -> a -> a -> GTag -> a
+gTag new side1 side2 NewFormG   = new
+gTag new side1 side2 SideFormG1 = side1
+gTag new side1 side2 SideFormG2 = side2
+
 -- Data #2.
 data Button = LeftButton | RightButton
 -- Typically Part1 is the left operand of a connective and Part2 is the right
--- operand. In cases like negation where this never matters, we'll just use
--- Part1.
+-- operand. We will actually usually just say that a click was on Part1
+-- regardless of its actual position *except* in cases where we know that the
+-- information will be used, like for clicks on conjunction antecedents.
 data FormPart = Part1 | Part2
 type Click = {button :: Button, part :: FormPart}
+-- The UI code will send a Click whenever the user actually clicks, but in some
+-- cases those clicks will mean something like toggling or canceling rather
+-- than an actual choice of rule. A Click will be put into this newtype if we
+-- have processed it to the point of knowing that it will serve to pick a rule.
+newtype RuleChoice = RC Click
 
--- a utility
-byPart :: forall a. FormPart -> a -> a -> a
-byPart Part1 x y = x
-byPart Part2 x y = y
+-- Eliminator for convenience.
+byPart :: forall a. a -> a -> FormPart -> a
+byPart x y Part1 = x
+byPart x y Part2 = y
 
 type GroupedForms = {group1 :: Forms, group2 :: Forms}
 -- A sequent which has been decomposed according to the tags and positions of
@@ -150,32 +176,42 @@ explodeG (Entails ants cqts) =
         untag = map _.form
 
 -- Here's the real meat of the sequent calculus logic.
-data PickAction = NoRule | WrongMode | Obligations (Array Sequent)
-pickRule :: Click -> ExplodedSequent -> PickAction
+-- The next function takes a provoking click and an exploded sequent, and it
+-- replies with one of:
+data PickAction
+    -- There is no rule with a suitable conclusion.
+    = NoRule
+    -- There is a rule with a suitable conclusion, but it expects grouping and
+    -- none was given (or vice versa).
+    | WrongMode
+    -- There is a rule with a suitable conclusion, and here are its premises.
+    | Obligations (Array Sequent)
+pickRule :: RuleChoice -> ExplodedSequent -> PickAction
 -- contraction
-pickRule {button: RightButton} (LeftNG {before, new, after, cqts}) =
+pickRule (RC {button: RightButton}) (LeftNG {before, new, after, cqts}) =
   Obligations [before <> [new, new] <> after |- cqts]
-pickRule {button: RightButton} (RightNG {ants, before, new, after}) =
+pickRule (RC {button: RightButton}) (RightNG {ants, before, new, after}) =
   Obligations [ants |- before <> [new, new] <> after]
 -- atoms have no rules
-pickRule {button: LeftButton} eseq | Atom _ <- enew eseq = NoRule
+pickRule (RC {button: LeftButton}) eseq | Atom _ <- enew eseq = NoRule
 -- main logical rules
-pickRule {button: LeftButton, part} (LeftNG {before, new, after, cqts}) =
+pickRule (RC {button: LeftButton, part}) (LeftNG {before, new, after, cqts}) =
   case new of
-    Conj l r -> Obligations [before <> [byPart part l r] <> after |- cqts]
+    Conj l r -> Obligations [before <> [byPart l r part] <> after |- cqts]
     Disj l r -> Obligations [before <> [l] <> after |- cqts,
                              before <> [r] <> after |- cqts]
     Neg b -> Obligations [before <> after |- cqts `snoc` b]
     _ -> WrongMode -- only Impl; Atom was ruled out above
-pickRule {button: LeftButton, part} (RightNG {ants, before, new, after}) =
+pickRule (RC {button: LeftButton, part}) (RightNG {ants, before, new, after}) =
   case new of
     Atom _ -> NoRule -- impossible, but the compiler doesn't realize that
     Impl l r -> Obligations [ants `snoc` l |- before <> [r] <> after]
     Conj l r -> Obligations [ants |- before <> [l] <> after,
                              ants |- before <> [r] <> after]
-    Disj l r -> Obligations [ants |- before <> [byPart part l r] <> after]
+    Disj l r -> Obligations [ants |- before <> [byPart l r part] <> after]
     Neg b -> Obligations [ants `snoc` b |- before <> after]
-pickRule {button: LeftButton} (LeftG {before, new: Impl l r, after, cqts}) =
+pickRule (RC {button: LeftButton})
+    (LeftG {before, new: Impl l r, after, cqts}) =
   Obligations [before.group1 <> after.group1 |- l `cons` cqts.group1,
                before.group2 <> [r] <> after.group2 |- cqts.group2]
 pickRule _ _ = WrongMode
@@ -188,7 +224,8 @@ data Model
   -- mode, clicking on a formula indicates an attempt to introduce it.
   = Assertion Sequent
   -- A derivation whose end-sequent is the conclusion of a rule.
-  | Conclusion {subprfs :: Array Model, click :: Click, wconc :: Conclusion}
+  | Conclusion {subprfs :: Array Model,
+                rule :: RuleChoice, wconc :: Conclusion}
 data Conclusion
   -- The conclusion of a rule that does not require grouping. In this mode,
   -- clicking on a formula works like in Assertion, and will probably cause us
@@ -208,8 +245,8 @@ init = Assertion $
 
 unitaggedConc :: Model -> Sequent
 unitaggedConc (Assertion conc) = conc
-unitaggedConc (Conclusion {wconc: ConcNG conc}) = unitag conc
-unitaggedConc (Conclusion {wconc: ConcG conc}) = unitag conc
+unitaggedConc (Conclusion {wconc: ConcNG conc}) = mapTags (const unit) conc
+unitaggedConc (Conclusion {wconc: ConcG  conc}) = mapTags (const unit) conc
 
 complete :: Model -> Boolean
 complete (Assertion _) = false
@@ -217,12 +254,9 @@ complete (Conclusion {subprfs}) = all complete subprfs
 
 -- UPDATE
 
-data SeqSide = LHS | RHS
 data NodeAction = ClickedTurnstile Click |
-  ClickedForm {click :: Click, side :: SeqSide, ix :: Int}
+  ClickedForm {click :: Click, seqix :: SeqIx}
 data Action = ChildAction Int Action | NAction NodeAction
-
-derive instance eqSeqSide :: Eq SeqSide
 
 update :: Model -> Action -> Model
 update prf (NAction nact) = updateNode prf nact
@@ -238,57 +272,38 @@ updateNode prf (ClickedTurnstile click@{button: LeftButton})
   | conc@(Entails ants cqts) <- unitaggedConc prf,
     any (_ `elem` ants) cqts =
     -- TODO Find a proper new formula!!! This breaks invariant!!!
-    let retag = map _{tag = SideFormNG} in
-    Conclusion {subprfs: [], click,
-                wconc: ConcNG (Entails (retag ants) (retag cqts))}
+    -- Also, the rule field doesn't make much sense here either.
+    Conclusion {subprfs: [], rule: RC click,
+                wconc: ConcNG (mapTags (const SideFormNG) conc)}
   | otherwise = prf
--- Necessary assumption for invariant to be preserved: ix exists on the
--- appropriate side of the end-sequent.
-updateNode prf nact@(ClickedForm {click, side, ix}) = case prf of
-  Assertion conc@(Entails ants cqts) ->
-    let retag side' ix' p | ix' == ix, side' == side = p{tag = NewFormNG}
-                          | otherwise = p{tag = SideFormNG}
-        ants' = mapWithIndex (retag LHS) ants
-        cqts' = mapWithIndex (retag RHS) cqts
-        conc' = Entails ants' cqts'
-    in fromMaybe prf (applyRule click (ConcNG conc'))
-  Conclusion {wconc: wconc@(ConcNG (Entails ants cqts))} ->
-    let retag side' ix' p | ix' == ix, side' == side = p{tag = NewFormNG}
-                          | otherwise = p{tag = SideFormNG}
-        ants' = mapWithIndex (retag LHS) ants
-        cqts' = mapWithIndex (retag RHS) cqts
-        conc' = Entails ants' cqts'
-    in fromMaybe prf (applyRule click (ConcNG conc'))
-  Conclusion {click: oclick, wconc: ConcG (Entails ants cqts)} ->
-    let toggle side' ix' p | ix' == ix, side' == side = p{tag =
-                             case p.tag of SideFormG1 -> SideFormG2
-                                           SideFormG2 -> SideFormG1
-                                           NewFormG -> NewFormG}
-                           | otherwise = p
-        ants' = mapWithIndex (toggle LHS) ants
-        cqts' = mapWithIndex (toggle RHS) cqts
-        conc' = Entails ants' cqts'
-    in fromMaybe prf (applyRule oclick (ConcG conc'))
+-- Necessary assumption for invariant to be preserved: seqix exists in the
+-- end-sequent.
+-- ...is that actually safe to assume?...
+-- TODO There are a few kinds of interaction to add (left-clicking the nw
+-- formula should cancel, etc).
+updateNode prf nact@(ClickedForm {click, seqix}) = fromMaybe prf $ case prf of
+  Conclusion {rule, wconc: ConcG conc} ->
+    let chtag seqix' = if seqix' == seqix
+          then gTag NewFormG SideFormG2 SideFormG1 else identity
+    -- Note that we reuse the saved rule choice rather than wrapping the new
+    -- click, since the new click is a toggle and not a rule choice.
+    in applyRule rule (ConcG (mapTagsI chtag conc))
+  -- Clicking does the same thing in Assertion and ConcNG.
+  _ ->
+    let chtag seqix' _ = if seqix' == seqix then NewFormNG else SideFormNG
+    in applyRule (RC click) (ConcNG (mapTagsI chtag (unitaggedConc prf)))
 
-applyRule :: Click -> Conclusion -> Maybe Model
-applyRule click wconc@(ConcNG conc) = case pickRule click (explodeNG conc) of
+applyRule :: RuleChoice -> Conclusion -> Maybe Model
+applyRule rule wconc = case pickRule rule exploded of
   NoRule -> Nothing
-  WrongMode ->
-    let Entails ants cqts = conc
-        chtag p@{tag: NewFormNG} = p{tag = NewFormG}
-        chtag p@{tag: SideFormNG} = p{tag = SideFormG1}
-    in applyRule click (ConcG (Entails (map chtag ants) (map chtag cqts)))
+  WrongMode -> applyRule rule omode
   Obligations obs -> Just $
-    Conclusion {subprfs: map Assertion obs, click, wconc}
-applyRule click wconc@(ConcG conc) = case pickRule click (explodeG conc) of
-  NoRule -> Nothing
-  WrongMode ->
-    let Entails ants cqts = conc
-        chtag p@{tag: NewFormG} = p{tag = NewFormNG}
-        chtag p = p{tag = SideFormNG}
-    in applyRule click (ConcNG (Entails (map chtag ants) (map chtag cqts)))
-  Obligations obs -> Just $
-    Conclusion {subprfs: map Assertion obs, click, wconc}
+    Conclusion {subprfs: map Assertion obs, rule, wconc}
+  where Tuple exploded omode = case wconc of
+          ConcNG conc -> Tuple (explodeNG conc) $
+            ConcG (mapTags (ngTag NewFormG  SideFormG1) conc)
+          ConcG conc -> Tuple (explodeG conc) $
+            ConcNG (mapTags (gTag  NewFormNG SideFormNG SideFormNG) conc)
 
 -- VIEW
 
@@ -298,7 +313,7 @@ renderDerivation prf =
   H.div [H.classes ["derivation", guard (complete prf) "complete"]]
   case prf of
     Assertion conc -> [map NAction (renderSequent conc)]
-    Conclusion {subprfs, click, wconc} -> [
+    Conclusion {subprfs} -> [
       let rsp ix subprf = map (ChildAction ix) (renderDerivation subprf)
       in H.div [] (mapWithIndex rsp subprfs),
       H.hr [], map NAction (renderSequent (unitaggedConc prf))]
@@ -320,14 +335,14 @@ renderSequent :: Sequent -> Html NodeAction
 renderSequent seq@(Entails ants cqts) =
   H.span [] (half LHS ants <> [turnstile] <> half RHS cqts)
   where half side = intersperse (H.text ", ") <<<
-          mapWithIndex (renderForm side) <<< map _.form
+          mapWithIndex (\ix {form} -> renderForm {side, ix} form)
         turnstile = clickable (ClickedTurnstile <<< {button: _, part: Part1})
           (H.text " ⊢ ")
 
-renderForm :: SeqSide -> Int -> Form -> Html NodeAction
-renderForm side ix form =
-  let p part = \b -> ClickedForm {click: {button: b, part}, side, ix}
-  in case side, form of
+renderForm :: SeqIx -> Form -> Html NodeAction
+renderForm seqix form =
+  let p part = \b -> ClickedForm {click: {button: b, part}, seqix}
+  in case seqix.side, form of
     -- TODO right-click on the middle too...
     LHS, Conj l r -> H.span [] [
       clickable (p Part1) (ppFormH l), H.text " ∧ ",
