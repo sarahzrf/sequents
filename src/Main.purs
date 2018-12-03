@@ -96,11 +96,13 @@ gTag new side1 side2 SideFormG2 = side2
 -- Data #2.
 data Button = LeftButton | RightButton
 -- Typically Part1 is the left operand of a connective and Part2 is the right
--- operand. We will actually usually just say that a click was on Part1
--- regardless of its actual position *except* in cases where we know that the
--- information will be used, like for clicks on conjunction antecedents.
+-- operand.
 data FormPart = Part1 | Part2
-type Click = {button :: Button, part :: FormPart}
+-- We will only bother to store a part in cases where we know that the
+-- information will be used, like for clicks on conjunction antecedents. We
+-- will also have Nothing if the click was, e.g., on the connective itself
+-- rather than one of the operands.
+type Click = {button :: Button, mpart :: Maybe FormPart}
 -- The UI code will send a Click whenever the user actually clicks, but in some
 -- cases those clicks will mean something like toggling or canceling rather
 -- than an actual choice of rule. A Click will be put into this newtype if we
@@ -195,20 +197,25 @@ pickRule (RC {button: RightButton}) (RightNG {ants, before, new, after}) =
 -- atoms have no rules
 pickRule (RC {button: LeftButton}) eseq | Atom _ <- enew eseq = NoRule
 -- main logical rules
-pickRule (RC {button: LeftButton, part}) (LeftNG {before, new, after, cqts}) =
+pickRule (RC {button: LeftButton, mpart}) (LeftNG {before, new, after, cqts}) =
   case new of
-    Conj l r -> Obligations [before <> [byPart l r part] <> after |- cqts]
+    Conj l r -> case mpart of
+      Nothing -> NoRule
+      Just part -> Obligations [before <> [byPart l r part] <> after |- cqts]
     Disj l r -> Obligations [before <> [l] <> after |- cqts,
                              before <> [r] <> after |- cqts]
     Neg b -> Obligations [before <> after |- cqts `snoc` b]
     _ -> WrongMode -- only Impl; Atom was ruled out above
-pickRule (RC {button: LeftButton, part}) (RightNG {ants, before, new, after}) =
+pickRule (RC {button: LeftButton, mpart})
+  (RightNG {ants, before, new, after}) =
   case new of
     Atom _ -> NoRule -- impossible, but the compiler doesn't realize that
     Impl l r -> Obligations [ants `snoc` l |- before <> [r] <> after]
     Conj l r -> Obligations [ants |- before <> [l] <> after,
                              ants |- before <> [r] <> after]
-    Disj l r -> Obligations [ants |- before <> [byPart l r part] <> after]
+    Disj l r -> case mpart of
+      Nothing -> NoRule
+      Just part -> Obligations [ants |- before <> [byPart l r part] <> after]
     Neg b -> Obligations [ants `snoc` b |- before <> after]
 pickRule (RC {button: LeftButton})
     (LeftG {before, new: Impl l r, after, cqts}) =
@@ -301,22 +308,32 @@ applyRule rule wconc = case pickRule rule exploded of
     Conclusion {subprfs: map Assertion obs, rule, wconc}
   where Tuple exploded omode = case wconc of
           ConcNG conc -> Tuple (explodeNG conc) $
-            ConcG (mapTags (ngTag NewFormG  SideFormG1) conc)
+            ConcG (mapTags (ngTag NewFormG SideFormG1) conc)
           ConcG conc -> Tuple (explodeG conc) $
             ConcNG (mapTags (gTag  NewFormNG SideFormNG SideFormNG) conc)
 
 -- VIEW
 
--- TODO use tags in rendering
+-- We'll translate all tags into this one sum type for the benefit of the
+-- renderForm function.
+data RenderTag = NewFormR | SideFormR | SideFormR1 | SideFormR2
+
+derive instance eqRenderTag :: Eq RenderTag
+
 renderDerivation :: Model -> Html Action
 renderDerivation prf =
   H.div [H.classes ["derivation", guard (complete prf) "complete"]]
   case prf of
-    Assertion conc -> [map NAction (renderSequent conc)]
-    Conclusion {subprfs} -> [
+    Assertion conc ->
+      [map NAction (renderSequent (mapTags (const SideFormR) conc))]
+    Conclusion {subprfs, wconc} -> [
       let rsp ix subprf = map (ChildAction ix) (renderDerivation subprf)
       in H.div [] (mapWithIndex rsp subprfs),
-      H.hr [], map NAction (renderSequent (unitaggedConc prf))]
+      H.hr [],
+      let conc = case wconc of
+            ConcNG conc -> mapTags (ngTag NewFormR SideFormR) conc
+            ConcG  conc -> mapTags (gTag  NewFormR SideFormR1 SideFormR2) conc
+      in map NAction (renderSequent conc)]
 
 -- TODO inefficient!!!
 intersperse :: forall a. a -> Array a -> Array a
@@ -325,32 +342,38 @@ intersperse sep arr = case uncons arr of
   Just {head, tail: []} -> [head]
   Just {head, tail} -> [head, sep] <> intersperse sep tail
 
-clickable :: forall act. (Button -> act) -> Html act -> Html act
-clickable act body =
-  H.span [H.classes ["clickable"],
+clickable :: forall act.
+  Array String -> (Button -> act) -> Array (Html act) -> Html act
+clickable clss act = H.span [H.classes (["clickable"] <> clss),
     H.on "contextmenu" (const (Just (act RightButton))),
-    H.onClick (const (Just (act LeftButton)))] [body]
+    H.onClick (const (Just (act LeftButton)))]
 
-renderSequent :: Sequent -> Html NodeAction
+renderSequent :: TaggedSequent RenderTag -> Html NodeAction
 renderSequent seq@(Entails ants cqts) =
   H.span [] (half LHS ants <> [turnstile] <> half RHS cqts)
   where half side = intersperse (H.text ", ") <<<
-          mapWithIndex (\ix {form} -> renderForm {side, ix} form)
-        turnstile = clickable (ClickedTurnstile <<< {button: _, part: Part1})
-          (H.text " ⊢ ")
+          mapWithIndex (\ix -> renderForm {side, ix})
+        turnstile = clickable []
+          (ClickedTurnstile <<< {button: _, mpart: Nothing})
+          [H.text " ⊢ "]
 
-renderForm :: SeqIx -> Form -> Html NodeAction
-renderForm seqix form =
-  let p part = \b -> ClickedForm {click: {button: b, part}, seqix}
-  in case seqix.side, form of
-    -- TODO right-click on the middle too...
-    LHS, Conj l r -> H.span [] [
-      clickable (p Part1) (ppFormH l), H.text " ∧ ",
-      clickable (p Part2) (ppFormH r)]
-    RHS, Disj l r -> H.span [] [
-      clickable (p Part1) (ppFormH l), H.text " ∨ ",
-      clickable (p Part2) (ppFormH r)]
-    _, _ -> clickable (p Part1) (ppFormH form)
+renderForm :: SeqIx -> TaggedForm RenderTag -> Html NodeAction
+renderForm seqix {form, tag} =
+  let p mpart = \b -> ClickedForm {click: {button: b, mpart}, seqix}
+      pp = [ppFormH form]
+  in case tag of
+    SideFormR1 -> clickable ["side1"] (p Nothing) pp
+    SideFormR2 -> clickable ["side2"] (p Nothing) pp
+    _ ->
+      let clss = if tag == NewFormR then ["new"] else []
+      in case seqix.side, form of
+        LHS, Conj l r -> clickable clss (p Nothing) [
+          clickable [] (p (Just Part1)) [ppFormH l], H.text " ∧ ",
+          clickable [] (p (Just Part2)) [ppFormH r]]
+        RHS, Disj l r -> clickable clss (p Nothing) [
+          clickable [] (p (Just Part1)) [ppFormH l], H.text " ∨ ",
+          clickable [] (p (Just Part2)) [ppFormH r]]
+        _, _ -> clickable clss (p Nothing) pp
 
 -- TODO precedence
 ppForm :: Form -> String
