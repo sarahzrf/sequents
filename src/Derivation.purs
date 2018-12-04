@@ -363,11 +363,11 @@ renderForm seqix {form, tag} =
       let clss = if tag == NewFormR then ["new"] else []
       in case seqix.side, form of
         LHS, Conj l r -> clickable clss (p Nothing) [
-          clickable [] (p (Just Part1)) [ppFormH 2 l], H.text " ∧ ",
+          clickable [] (p (Just Part1)) [ppFormH 3 l], H.text " ∧ ",
           clickable [] (p (Just Part2)) [ppFormH 2 r]]
         RHS, Disj l r -> clickable clss (p Nothing) [
           clickable [] (p (Just Part1)) [ppFormH 2 l], H.text " ∨ ",
-          clickable [] (p (Just Part2)) [ppFormH 2 r]]
+          clickable [] (p (Just Part2)) [ppFormH 1 r]]
         _, _ -> clickable clss (p Nothing) pp
 
 -- precedence logic totally ripped off from
