@@ -407,7 +407,7 @@ renderForm seqix {form, tag} =
           clickable [] (p (Just Part1)) [ppFormH 3 l], H.text " & ",
           clickable [] (p (Just Part2)) [ppFormH 2 r]]
         RHS, Plus l r -> clickable clss (p Nothing) [
-          clickable [] (p (Just Part1)) [ppFormH 1 l], H.text " + ",
+          clickable [] (p (Just Part1)) [ppFormH 1 l], H.text " ⊕ ",
           clickable [] (p (Just Part2)) [ppFormH 0 r]]
         LHS, Ofc b -> clickable clss (p Nothing) [
           clickable [] (p (Just Part1)) [H.text "!"],
