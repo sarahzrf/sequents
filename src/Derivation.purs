@@ -222,6 +222,14 @@ pickRule (RC {button: LeftButton})
                before.group2 <> [r] <> after.group2 |- cqts.group2]
 pickRule _ _ = WrongMode
 
+-- Intuitionistic version!
+pickRuleInt :: RuleChoice -> ExplodedSequent -> PickAction
+pickRuleInt rule eseq = case pickRule rule eseq of
+  pa@(Obligations seqs)
+    | all (\(Entails _ cqts) -> length cqts <= 1) seqs -> pa
+    | otherwise -> NoRule
+  pa -> pa
+
 -- Model is a recursive type---each sub-derivation will be a Model, not just
 -- the root one. So the choice of mode only indicates the interaction state of
 -- the *root* of the derivation.
@@ -291,7 +299,7 @@ updateNode prf nact@(ClickedForm {click, seqix}) = fromMaybe prf $ case prf of
     in applyRule (RC click) (ConcNG (mapTagsI chtag (unitaggedConc prf)))
 
 applyRule :: RuleChoice -> Conclusion -> Maybe Model
-applyRule rule wconc = case pickRule rule exploded of
+applyRule rule wconc = case pickRuleInt rule exploded of
   NoRule -> Nothing
   WrongMode -> applyRule rule omode
   Obligations obs -> Just $
