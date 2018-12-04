@@ -33,7 +33,9 @@ update :: Model -> Action -> Model
 update mod@{prf} (DerAction dact) = mod{prf = D.update prf dact}
 update mod (Input s) = mod{input = s}
 update mod@{input} Submit = case runParser sequentParser input of
-  Left err -> mod -- TODO show error message somehow?
+  Left err -> case runParser (formParser unit) input of
+    Left _ -> mod -- TODO show error message somehow?
+    Right form -> {input: "", prf: D.Assertion $ [] D.|- [form]}
   Right seq -> {input: "", prf: D.Assertion seq}
 
 render :: Model -> Html Action

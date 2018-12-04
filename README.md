@@ -35,12 +35,13 @@ There are some special cases:
 
 ### Syntax for entering goals
 Goals take the form `A, ..., B |- C, ..., D` where `A, B, C, D` are formulas;
-empty lists are allowed on either side. Any sequence of alphanumeric characters
-can be an atomic formula. For LK and LJ, the connectives are `->`, `/\`, `\/`,
-and `~` (negation), from low to high precedence. For CLL, the connectives are
-`+`, `&` (additives), `@`, `*` (multiplicatives), `~`, `!`, and `?`, from low
-to high precedence. CLL also allows units `1`, `F` (multiplicatives), `0`, and
-`T` (additives), which will not be parsed as atomic formulas.
+empty lists are allowed on either side. You can also enter just `A` for `|- A`.
+Any sequence of alphanumeric characters can be an atomic formula. For LK and
+LJ, the connectives are `->`, `/\`, `\/`, and `~` (negation), from low to high
+precedence. For CLL, the connectives are `+`, `&` (additives), `@`, `*`
+(multiplicatives), `~`, `!`, and `?`, from low to high precedence. CLL also
+allows units `1`, `F` (multiplicatives), `0`, and `T` (additives), which will
+not be parsed as atomic formulas.
 
 The parser is a bit janky, and you may have to use more parentheses than you
 should really need to (e.g., `~~P` needs to be `~(~P)`). Maybe I'll improve it
