@@ -1092,7 +1092,7 @@ var PS = {};
               if (v2 instanceof Just) {
                   return v1(v2.value0);
               };
-              throw new Error("Failed pattern match at Data.Maybe line 218, column 1 - line 218, column 51: " + [ v.constructor.name, v1.constructor.name, v2.constructor.name ]);
+              throw new Error("Failed pattern match at Data.Maybe line 217, column 1 - line 217, column 51: " + [ v.constructor.name, v1.constructor.name, v2.constructor.name ]);
           };
       };
   };
@@ -1119,7 +1119,7 @@ var PS = {};
               if (v instanceof Just) {
                   return v.value0;
               };
-              throw new Error("Failed pattern match at Data.Maybe line 269, column 1 - line 269, column 46: " + [ v.constructor.name ]);
+              throw new Error("Failed pattern match at Data.Maybe line 268, column 1 - line 268, column 46: " + [ v.constructor.name ]);
           })());
       };
   }; 
@@ -6571,10 +6571,10 @@ var PS = {};
               return [  ];
           })();
           if (seqix.side instanceof LHS && v.form instanceof Conj) {
-              return clickable(clss)(p(Data_Maybe.Nothing.value))([ clickable([  ])(p(new Data_Maybe.Just(Part1.value)))([ ppFormH(2)(v.form.value0) ]), Spork_Html_Core.text(" \u2227 "), clickable([  ])(p(new Data_Maybe.Just(Part2.value)))([ ppFormH(2)(v.form.value1) ]) ]);
+              return clickable(clss)(p(Data_Maybe.Nothing.value))([ clickable([  ])(p(new Data_Maybe.Just(Part1.value)))([ ppFormH(3)(v.form.value0) ]), Spork_Html_Core.text(" \u2227 "), clickable([  ])(p(new Data_Maybe.Just(Part2.value)))([ ppFormH(2)(v.form.value1) ]) ]);
           };
           if (seqix.side instanceof RHS && v.form instanceof Disj) {
-              return clickable(clss)(p(Data_Maybe.Nothing.value))([ clickable([  ])(p(new Data_Maybe.Just(Part1.value)))([ ppFormH(2)(v.form.value0) ]), Spork_Html_Core.text(" \u2228 "), clickable([  ])(p(new Data_Maybe.Just(Part2.value)))([ ppFormH(2)(v.form.value1) ]) ]);
+              return clickable(clss)(p(Data_Maybe.Nothing.value))([ clickable([  ])(p(new Data_Maybe.Just(Part1.value)))([ ppFormH(2)(v.form.value0) ]), Spork_Html_Core.text(" \u2228 "), clickable([  ])(p(new Data_Maybe.Just(Part2.value)))([ ppFormH(1)(v.form.value1) ]) ]);
           };
           return clickable(clss)(p(Data_Maybe.Nothing.value))(pp);
       };
@@ -8494,7 +8494,17 @@ var PS = {};
           if (v1 instanceof Submit) {
               var v2 = Text_Parsing_StringParser.runParser(Parse.sequentParser)(v.input);
               if (v2 instanceof Data_Either.Left) {
-                  return v;
+                  var v3 = Text_Parsing_StringParser.runParser(Parse.formParser(Data_Unit.unit))(v.input);
+                  if (v3 instanceof Data_Either.Left) {
+                      return v;
+                  };
+                  if (v3 instanceof Data_Either.Right) {
+                      return {
+                          input: "",
+                          prf: Derivation.Assertion.create(Derivation.unitaggedEntails([  ])([ v3.value0 ]))
+                      };
+                  };
+                  throw new Error("Failed pattern match at Main line 36, column 15 - line 38, column 65: " + [ v3.constructor.name ]);
               };
               if (v2 instanceof Data_Either.Right) {
                   return {
@@ -8502,7 +8512,7 @@ var PS = {};
                       prf: new Derivation.Assertion(v2.value0)
                   };
               };
-              throw new Error("Failed pattern match at Main line 35, column 29 - line 37, column 49: " + [ v2.constructor.name ]);
+              throw new Error("Failed pattern match at Main line 35, column 29 - line 39, column 49: " + [ v2.constructor.name ]);
           };
           throw new Error("Failed pattern match at Main line 32, column 1 - line 32, column 35: " + [ v.constructor.name, v1.constructor.name ]);
       };
