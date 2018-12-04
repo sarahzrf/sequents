@@ -4,6 +4,7 @@ import Prelude
 import Effect (Effect)
 import Text.Parsing.StringParser
 import Data.Either
+import Data.Array
 
 import Spork.Html (Html)
 import Spork.Html as H
@@ -36,7 +37,9 @@ update mod@{input} Submit = case runParser sequentParser input of
   Left err -> case runParser (formParser unit) input of
     Left _ -> mod -- TODO show error message somehow?
     Right form -> {input: "", prf: D.Assertion $ [] D.|- [form]}
-  Right seq -> {input: "", prf: D.Assertion seq}
+  Right seq@(D.Entails _ cqts)
+    | length cqts <= 1 -> {input: "", prf: D.Assertion seq}
+    | otherwise -> mod
 
 render :: Model -> Html Action
 render {input, prf} = H.div [H.id_ "main"] [
