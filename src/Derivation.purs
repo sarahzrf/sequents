@@ -306,7 +306,7 @@ applyRule rule wconc = case pickRuleInt rule exploded of
     Conclusion {subprfs: map Assertion obs, rule, wconc}
   where Tuple exploded omode = case wconc of
           ConcNG conc -> Tuple (explodeNG conc) $
-            ConcG (mapTags (ngTag NewFormG SideFormG1) conc)
+            ConcG (mapTags (ngTag NewFormG SideFormG2) conc)
           ConcG conc -> Tuple (explodeG conc) $
             ConcNG (mapTags (gTag  NewFormNG SideFormNG SideFormNG) conc)
 
