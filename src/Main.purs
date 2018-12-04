@@ -21,7 +21,8 @@ type Model = {input :: String, prf :: D.Model}
 
 init :: Model
 init = {input: "", prf: D.Assertion $
-  [] D.|- [((Atom "P" `Impl` Atom "Q") `Impl` Atom "P") `Impl` Atom "P"]}
+    [] D.|- []}
+  -- [] D.|- [((Atom "P" `Impl` Atom "Q") `Impl` Atom "P") `Impl` Atom "P"]}
   {-
   [Atom "P" `Conj` (Neg (Atom "P") `Disj` Neg (Neg (Atom "Q")))]
   D.|- [Atom "Q"]

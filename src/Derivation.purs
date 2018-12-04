@@ -15,8 +15,11 @@ import Web.UIEvent.MouseEvent as E
 -- MODEL
 
 -- Short for Formula.
-data Form = Atom String | Impl Form Form | Conj Form Form
-          | Disj Form Form | Neg Form
+data Form
+    = Atom String | Neg Form
+    | Tens Form Form | Par  Form Form | One  | Bot
+    | Plus Form Form | With Form Form | Zero | Top
+    | Ofc Form | Ynot Form
 -- We will need to tag our formulas for UI reasons when they are stored as
 -- application state.
 type Forms = Array Form
@@ -171,6 +174,15 @@ explodeG (Entails ants cqts) =
                       in {group1: untag p.yes, group2: untag p.no}
         untag = map _.form
 
+-- Useful below.
+isOfc :: Form -> Boolean
+isOfc (Ofc _) = true
+isOfc _ = false
+
+isYnot :: Form -> Boolean
+isYnot (Ynot _) = true
+isYnot _ = false
+
 -- Here's the real meat of the sequent calculus logic.
 -- The next function takes a provoking click and an exploded sequent, and it
 -- replies with one of:
@@ -183,43 +195,72 @@ data PickAction
     -- There is a rule with a suitable conclusion, and here are its premises.
     | Obligations (Array Sequent)
 pickRule :: RuleChoice -> ExplodedSequent -> PickAction
--- contraction
-pickRule (RC {button: RightButton}) (LeftNG {before, new, after, cqts}) =
-  Obligations [before <> [new, new] <> after |- cqts]
-pickRule (RC {button: RightButton}) (RightNG {ants, before, new, after}) =
-  Obligations [ants |- before <> [new, new] <> after]
--- weakening
-pickRule (RC {button: MiddleButton}) (LeftNG {before, new, after, cqts}) =
-  Obligations [before <> after |- cqts]
-pickRule (RC {button: MiddleButton}) (RightNG {ants, before, new, after}) =
-  Obligations [ants |- before <> after]
+pickRule (RC {button: MiddleButton}) _ = NoRule
+pickRule (RC {button: RightButton}) eseq = case eseq of
+  LeftNG  o@{before, new: new@(Ofc b), after, cqts} ->
+    Obligations [before <> [new, new] <> after |- cqts]
+  RightNG o@{ants, before, new: new@(Ynot b), after} ->
+    Obligations [ants |- before <> [new, new] <> after]
+  LeftG  o@{new: Ofc b} -> WrongMode
+  RightG o@{new: Ynot b} -> WrongMode
+  _ -> NoRule
 -- atoms have no rules
 pickRule (RC {button: LeftButton}) eseq | Atom _ <- enew eseq = NoRule
--- main logical rules
 pickRule (RC {button: LeftButton, mpart}) (LeftNG {before, new, after, cqts}) =
   case new of
-    Conj l r -> case mpart of
+    Atom _ -> NoRule -- already covered above, but compiler doesn't know
+    Neg b -> Obligations [before <> after |- cqts `snoc` b]
+    Tens l r -> Obligations [before <> [l, r] <> after |- cqts]
+    Par  l r -> WrongMode
+    One -> Obligations [before <> after |- cqts]
+    Bot | [before, after, cqts] == [[], [], []] -> Obligations []
+        | otherwise -> NoRule
+    Plus l r -> Obligations [before <> [l] <> after |- cqts,
+                             before <> [r] <> after |- cqts]
+    With l r -> case mpart of
       Nothing -> NoRule
       Just part -> Obligations [before <> [byPart l r part] <> after |- cqts]
-    Disj l r -> Obligations [before <> [l] <> after |- cqts,
-                             before <> [r] <> after |- cqts]
-    Neg b -> Obligations [before <> after |- cqts `snoc` b]
-    _ -> WrongMode -- only Impl; Atom was ruled out above
+    Zero -> Obligations []
+    Top -> NoRule
+    Ofc b -> case mpart of
+      Nothing -> NoRule
+      Just Part1 -> Obligations [before <> after |- cqts]
+      Just Part2 -> Obligations [before <> [b] <> after |- cqts]
+    Ynot b | all isOfc (before <> after) && all isYnot cqts ->
+             Obligations [before <> [b] <> after |- cqts]
+           | otherwise -> NoRule
 pickRule (RC {button: LeftButton, mpart})
   (RightNG {ants, before, new, after}) =
   case new of
-    Atom _ -> NoRule -- impossible, but the compiler doesn't realize that
-    Impl l r -> Obligations [ants `snoc` l |- before <> [r] <> after]
-    Conj l r -> Obligations [ants |- before <> [l] <> after,
-                             ants |- before <> [r] <> after]
-    Disj l r -> case mpart of
+    Atom _ -> NoRule -- already covered above, but compiler doesn't know
+    Neg b -> Obligations [ants `snoc` b |- before <> after]
+    Tens l r -> WrongMode
+    Par  l r -> Obligations [ants |- before <> [l, r] <> after]
+    One | [ants, before, after] == [[], [], []] -> Obligations []
+        | otherwise -> NoRule
+    Bot -> Obligations [ants |- before <> after]
+    Plus l r -> case mpart of
       Nothing -> NoRule
       Just part -> Obligations [ants |- before <> [byPart l r part] <> after]
-    Neg b -> Obligations [ants `snoc` b |- before <> after]
+    With l r -> Obligations [ants |- before <> [l] <> after,
+                             ants |- before <> [r] <> after]
+    Zero -> NoRule
+    Top -> Obligations []
+    Ofc b | all isOfc ants && all isYnot (before <> after) ->
+            Obligations [ants |- before <> [b] <> after]
+          | otherwise -> NoRule
+    Ynot b -> case mpart of
+      Nothing -> NoRule
+      Just Part1 -> Obligations [ants |- before <> after]
+      Just Part2 -> Obligations [ants |- before <> [b] <> after]
 pickRule (RC {button: LeftButton})
-    (LeftG {before, new: Impl l r, after, cqts}) =
-  Obligations [before.group1 <> after.group1 |- l `cons` cqts.group1,
+  (LeftG {before, new: Par l r, after, cqts}) =
+  Obligations [before.group1 <> [l] <> after.group1 |- cqts.group1,
                before.group2 <> [r] <> after.group2 |- cqts.group2]
+pickRule (RC {button: LeftButton})
+  (RightG {ants, before, new: Tens l r, after}) =
+  Obligations [ants.group1 |- before.group1 <> [l] <> after.group1,
+               ants.group2 |- before.group2 <> [r] <> after.group2]
 pickRule _ _ = WrongMode
 
 -- Model is a recursive type---each sub-derivation will be a Model, not just
@@ -362,12 +403,18 @@ renderForm seqix {form, tag} =
     _ ->
       let clss = if tag == NewFormR then ["new"] else []
       in case seqix.side, form of
-        LHS, Conj l r -> clickable clss (p Nothing) [
-          clickable [] (p (Just Part1)) [ppFormH 3 l], H.text " ∧ ",
+        LHS, With l r -> clickable clss (p Nothing) [
+          clickable [] (p (Just Part1)) [ppFormH 2 l], H.text " & ",
           clickable [] (p (Just Part2)) [ppFormH 2 r]]
-        RHS, Disj l r -> clickable clss (p Nothing) [
-          clickable [] (p (Just Part1)) [ppFormH 2 l], H.text " ∨ ",
-          clickable [] (p (Just Part2)) [ppFormH 1 r]]
+        RHS, Plus l r -> clickable clss (p Nothing) [
+          clickable [] (p (Just Part1)) [ppFormH 0 l], H.text " + ",
+          clickable [] (p (Just Part2)) [ppFormH 0 r]]
+        LHS, Ofc b -> clickable clss (p Nothing) [
+          clickable [] (p (Just Part1)) [H.text "!"],
+          clickable [] (p (Just Part2)) [ppFormH 4 b]]
+        RHS, Ynot b -> clickable clss (p Nothing) [
+          clickable [] (p (Just Part1)) [H.text "?"],
+          clickable [] (p (Just Part2)) [ppFormH 4 b]]
         _, _ -> clickable clss (p Nothing) pp
 
 -- precedence logic totally ripped off from
@@ -375,10 +422,17 @@ renderForm seqix {form, tag} =
 ppForm :: Int -> Form -> String
 ppForm prec form = case form of
   Atom a -> a
-  Impl l r -> p 0 $ ppForm 1 l <> " → " <> ppForm 0 r
-  Conj l r -> p 2 $ ppForm 3 l <> " ∧ " <> ppForm 2 r
-  Disj l r -> p 1 $ ppForm 2 l <> " ∨ " <> ppForm 1 r
-  Neg b -> p 3 $ "¬" <> ppForm 3 b
+  Neg b -> p 4 $ "¬" <> ppForm 4 b -- wrong symbol?
+  Tens l r -> p 3 $ ppForm 4 l <> " ⊗ " <> ppForm 3 r
+  Par  l r -> p 1 $ ppForm 2 l <> " ⅋ " <> ppForm 1 r
+  One -> "1"
+  Bot -> "⊥"
+  Plus l r -> p 0 $ ppForm 1 l <> " ⊕ " <> ppForm 0 r
+  With l r -> p 2 $ ppForm 3 l <> " & " <> ppForm 2 r
+  Zero -> "0"
+  Top  -> "⊤"
+  Ofc  b -> p 4 $ "!" <> ppForm 4 b
+  Ynot b -> p 4 $ "?" <> ppForm 4 b
   where p prec' s | prec <= prec' = s
                   | otherwise = "(" <> s <> ")"
 

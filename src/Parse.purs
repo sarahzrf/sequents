@@ -19,14 +19,21 @@ formParser _ = skipSpaces *> buildExprParser table (defer expr) <* skipSpaces
 
 table :: OperatorTable Form
 table = [
-  [Prefix (Neg <$ spaced "~")],
-  [Infix (Conj <$ spaced "/\\") AssocRight,
-   Infix (Disj <$ spaced "\\/") AssocRight],
-  [Infix (Impl <$ spaced "->") AssocRight]]
+  [Prefix (Neg <$ spaced "~"), Prefix (Ofc <$ spaced "!"),
+   Prefix (Ynot <$ spaced "?")],
+  [Infix (Tens <$ spaced "*") AssocRight,
+   Infix (Par <$ spaced "@") AssocRight],
+  [Infix (Plus <$ spaced "+") AssocRight,
+   Infix (With <$ spaced "&") AssocRight]]
   where spaced op = try $ skipSpaces *> string op <* skipSpaces
 
 expr :: Unit -> Parser Form
-expr _ = char '(' *> defer formParser <* char ')' <|> Atom <$> regex "\\w+"
+expr _ = char '(' *> defer formParser <* char ')' <|>
+  One  <$ string "1" <|>
+  Bot  <$ string "F" <|>
+  Zero <$ string "0" <|>
+  Top  <$ string "T" <|>
+  Atom <$> regex "\\w+"
 
 sequentParser :: Parser Sequent
 sequentParser = (|-) <$> forms <*> (string "|-" *> forms)
