@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sequents</title>
+    <style>
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.derivation {
+    display: inline-block;
+    margin-left: 10px;
+    margin-right: 10px;
+    text-align: center;
+}
+#main {
+    justify-content: center;
+    align-items: center;
+    position: absolute;
+    bottom: 50%;
+}
+#main > .derivation {display: block;}
+.complete {
+    background-color: lightgreen;
+}
+.prems-container {
+    text-align: center;
+}
+.clickable {
+    cursor: pointer;
+}
+.clickable:hover {
+    background-color: #CCCCFF;
+}
+.clickable .clickable:hover {
+    background-color: #AAAAFF;
+}
+.new {background-color: #AAAAFF;}
+.side1 {border-style: solid;}
+.side2 {border-style: dashed;}
+    </style>
+</head>
+<body>
+    <script>
+        // hacky :\
+        document.body.onmousedown = document.body.oncontextmenu = (e) => {
+            if (e.target.classList.contains('clickable')) e.preventDefault();
+        };
+    </script>
+    <script src="lk.js"></script>
+</body>
+</html>
+
