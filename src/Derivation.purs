@@ -10,6 +10,7 @@ import Data.Function
 
 import Spork.Html (Html)
 import Spork.Html as H
+import Web.UIEvent.MouseEvent as E
 
 -- MODEL
 
@@ -87,7 +88,7 @@ gTag new side1 side2 SideFormG1 = side1
 gTag new side1 side2 SideFormG2 = side2
 
 -- Data #2.
-data Button = LeftButton | RightButton
+data Button = LeftButton | MiddleButton | RightButton
 -- Typically Part1 is the left operand of a connective and Part2 is the right
 -- operand.
 data FormPart = Part1 | Part2
@@ -187,6 +188,11 @@ pickRule (RC {button: RightButton}) (LeftNG {before, new, after, cqts}) =
   Obligations [before <> [new, new] <> after |- cqts]
 pickRule (RC {button: RightButton}) (RightNG {ants, before, new, after}) =
   Obligations [ants |- before <> [new, new] <> after]
+-- weakening
+pickRule (RC {button: MiddleButton}) (LeftNG {before, new, after, cqts}) =
+  Obligations [before <> after |- cqts]
+pickRule (RC {button: MiddleButton}) (RightNG {ants, before, new, after}) =
+  Obligations [ants |- before <> after]
 -- atoms have no rules
 pickRule (RC {button: LeftButton}) eseq | Atom _ <- enew eseq = NoRule
 -- main logical rules
@@ -258,15 +264,14 @@ update (Conclusion o@{subprfs}) (ChildAction ix act) =
     fromMaybe subprfs (modifyAt ix (flip update act) subprfs)}
 
 updateNode :: Model -> NodeAction -> Model
+updateNode prf (ClickedTurnstile {button: MiddleButton}) = prf
 updateNode prf (ClickedTurnstile {button: RightButton}) =
   Assertion (unitaggedConc prf)
 updateNode prf (ClickedTurnstile click@{button: LeftButton})
-  | conc@(Entails ants cqts) <- unitaggedConc prf,
-    any (_ `elem` ants) cqts =
-    -- TODO Find a proper new formula!!! This breaks invariant!!!
-    -- Also, the rule field doesn't make much sense here either.
+  | conc@(Entails [ant] [cqt]) <- unitaggedConc prf,
+    ant == cqt =
     Conclusion {subprfs: [], rule: RC click,
-                wconc: ConcNG (mapTags (const SideFormNG) conc)}
+    wconc: ConcNG (Entails [ant{tag = SideFormNG}] [cqt{tag = NewFormNG}])}
   | otherwise = prf
 -- Necessary assumption for invariant to be preserved: seqix exists in the
 -- end-sequent.
@@ -330,8 +335,13 @@ intersperse sep arr = case uncons arr of
 clickable :: forall act.
   Array String -> (Button -> act) -> Array (Html act) -> Html act
 clickable clss act = H.span [H.classes (["clickable"] <> clss),
-    H.on "contextmenu" (const (Just (act RightButton))),
-    H.onClick (const (Just (act LeftButton)))]
+  H.onMouseDown (map act <<< buttonFor)]
+  where buttonFor e = case E.button e, E.ctrlKey e of
+          0, false -> Just LeftButton
+          0, true -> Just MiddleButton
+          1, _ -> Just MiddleButton
+          2, _ -> Just RightButton
+          _, _ -> Nothing
 
 renderSequent :: TaggedSequent RenderTag -> Html NodeAction
 renderSequent seq@(Entails ants cqts) =

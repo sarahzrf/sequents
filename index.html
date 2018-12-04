@@ -45,7 +45,9 @@ body {
 <body>
     <script>
         // hacky :\
-        document.body.oncontextmenu = (e) => e.preventDefault();
+        document.body.onmousedown = document.body.oncontextmenu = (e) => {
+            if (e.target.classList.contains('clickable')) e.preventDefault();
+        };
     </script>
     <script src="/app.js"></script>
 </body>
