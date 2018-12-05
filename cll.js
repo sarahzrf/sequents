@@ -6070,6 +6070,18 @@ var PS = {};
       };
       return Ynot;
   })();
+  var Impl = (function () {
+      function Impl(value0, value1) {
+          this.value0 = value0;
+          this.value1 = value1;
+      };
+      Impl.create = function (value0) {
+          return function (value1) {
+              return new Impl(value0, value1);
+          };
+      };
+      return Impl;
+  })();
   var Entails = (function () {
       function Entails(value0, value1) {
           this.value0 = value0;
@@ -6253,7 +6265,7 @@ var PS = {};
                   if (Data_Boolean.otherwise) {
                       return "(" + (s + ")");
                   };
-                  throw new Error("Failed pattern match at Derivation line 436, column 9 - line 439, column 1: " + [ prec$prime.constructor.name, s.constructor.name ]);
+                  throw new Error("Failed pattern match at Derivation line 445, column 9 - line 448, column 1: " + [ prec$prime.constructor.name, s.constructor.name ]);
               };
           };
           if (form instanceof Atom) {
@@ -6292,12 +6304,15 @@ var PS = {};
           if (form instanceof Ynot) {
               return p(4)("?" + ppForm(4)(form.value0));
           };
-          throw new Error("Failed pattern match at Derivation line 423, column 20 - line 435, column 36: " + [ form.constructor.name ]);
+          if (form instanceof Impl) {
+              return p(-1 | 0)(ppForm(0)(form.value0) + (" \u22b8 " + ppForm(-1 | 0)(form.value1)));
+          };
+          throw new Error("Failed pattern match at Derivation line 431, column 20 - line 444, column 60: " + [ form.constructor.name ]);
       };
   };
   var ppFormH = function (prec) {
-      return function ($397) {
-          return Spork_Html_Core.text(ppForm(prec)($397));
+      return function ($414) {
+          return Spork_Html_Core.text(ppForm(prec)($414));
       };
   };
   var ngTag = function ($$new) {
@@ -6309,7 +6324,7 @@ var PS = {};
               if (v instanceof SideFormNG) {
                   return side;
               };
-              throw new Error("Failed pattern match at Derivation line 84, column 1 - line 84, column 40: " + [ $$new.constructor.name, side.constructor.name, v.constructor.name ]);
+              throw new Error("Failed pattern match at Derivation line 85, column 1 - line 85, column 40: " + [ $$new.constructor.name, side.constructor.name, v.constructor.name ]);
           };
       };
   };
@@ -6331,8 +6346,8 @@ var PS = {};
           return new Entails(go(LHS.value)(v.value0), go(RHS.value)(v.value1));
       };
   };
-  var mapTags = function ($398) {
-      return mapTagsI(Data_Function["const"]($398));
+  var mapTags = function ($415) {
+      return mapTagsI(Data_Function["const"]($415));
   };
   var unitaggedConc = function (v) {
       if (v instanceof Assertion) {
@@ -6344,7 +6359,7 @@ var PS = {};
       if (v instanceof Conclusion && v.value0.wconc instanceof ConcG) {
           return mapTags(Data_Function["const"](Data_Unit.unit))(v.value0.wconc.value0);
       };
-      throw new Error("Failed pattern match at Derivation line 285, column 1 - line 285, column 34: " + [ v.constructor.name ]);
+      throw new Error("Failed pattern match at Derivation line 293, column 1 - line 293, column 34: " + [ v.constructor.name ]);
   };
   var isYnot = function (v) {
       if (v instanceof Ynot) {
@@ -6370,7 +6385,7 @@ var PS = {};
           if (v instanceof Data_Maybe.Just) {
               return Data_Semigroup.append(Data_Semigroup.semigroupArray)([ v.value0.head, sep ])(intersperse(sep)(v.value0.tail));
           };
-          throw new Error("Failed pattern match at Derivation line 371, column 23 - line 374, column 59: " + [ v.constructor.name ]);
+          throw new Error("Failed pattern match at Derivation line 379, column 23 - line 382, column 59: " + [ v.constructor.name ]);
       };
   };
   var gTag = function ($$new) {
@@ -6386,7 +6401,7 @@ var PS = {};
                   if (v instanceof SideFormG2) {
                       return side2;
                   };
-                  throw new Error("Failed pattern match at Derivation line 88, column 1 - line 88, column 43: " + [ $$new.constructor.name, side1.constructor.name, side2.constructor.name, v.constructor.name ]);
+                  throw new Error("Failed pattern match at Derivation line 89, column 1 - line 89, column 43: " + [ $$new.constructor.name, side1.constructor.name, side2.constructor.name, v.constructor.name ]);
               };
           };
       };
@@ -6439,19 +6454,19 @@ var PS = {};
               if (Data_Boolean.otherwise) {
                   return Data_Maybe.Nothing.value;
               };
-              throw new Error("Failed pattern match at Derivation line 141, column 1 - line 141, column 52: " + [ forms.constructor.name ]);
+              throw new Error("Failed pattern match at Derivation line 142, column 1 - line 142, column 52: " + [ forms.constructor.name ]);
           };
-          var $137 = Data_Array.span(function (v2) {
+          var $143 = Data_Array.span(function (v2) {
               return Data_Eq.notEq(eqNGTag)(v2.tag)(NewFormNG.value);
           })(forms);
-          var $138 = Data_Array.uncons($137.rest);
-          if ($138 instanceof Data_Maybe.Just) {
-              var $139 = Data_Eq.eq(eqNGTag)($138.value0.head.tag)(NewFormNG.value);
-              if ($139) {
+          var $144 = Data_Array.uncons($143.rest);
+          if ($144 instanceof Data_Maybe.Just) {
+              var $145 = Data_Eq.eq(eqNGTag)($144.value0.head.tag)(NewFormNG.value);
+              if ($145) {
                   return new Data_Maybe.Just({
-                      init: $137.init,
-                      head: $138.value0.head,
-                      tail: $138.value0.tail
+                      init: $143.init,
+                      head: $144.value0.head,
+                      tail: $144.value0.tail
                   });
               };
               return v1(true);
@@ -6479,7 +6494,7 @@ var PS = {};
       if (v2 instanceof Data_Maybe.Nothing && v1 instanceof Data_Maybe.Nothing) {
           return Partial_Unsafe.unsafeCrashWith("no new formula?!");
       };
-      throw new Error("Failed pattern match at Derivation line 143, column 3 - line 151, column 3: " + [ v2.constructor.name, v1.constructor.name ]);
+      throw new Error("Failed pattern match at Derivation line 144, column 3 - line 152, column 3: " + [ v2.constructor.name, v1.constructor.name ]);
   };
   var eqGTag = new Data_Eq.Eq(function (x) {
       return function (y) {
@@ -6504,19 +6519,19 @@ var PS = {};
               if (Data_Boolean.otherwise) {
                   return Data_Maybe.Nothing.value;
               };
-              throw new Error("Failed pattern match at Derivation line 158, column 1 - line 158, column 50: " + [ forms.constructor.name ]);
+              throw new Error("Failed pattern match at Derivation line 159, column 1 - line 159, column 50: " + [ forms.constructor.name ]);
           };
-          var $164 = Data_Array.span(function (v2) {
+          var $170 = Data_Array.span(function (v2) {
               return Data_Eq.notEq(eqGTag)(v2.tag)(NewFormG.value);
           })(forms);
-          var $165 = Data_Array.uncons($164.rest);
-          if ($165 instanceof Data_Maybe.Just) {
-              var $166 = Data_Eq.eq(eqGTag)($165.value0.head.tag)(NewFormG.value);
-              if ($166) {
+          var $171 = Data_Array.uncons($170.rest);
+          if ($171 instanceof Data_Maybe.Just) {
+              var $172 = Data_Eq.eq(eqGTag)($171.value0.head.tag)(NewFormG.value);
+              if ($172) {
                   return new Data_Maybe.Just({
-                      init: $164.init,
-                      head: $165.value0.head,
-                      tail: $165.value0.tail
+                      init: $170.init,
+                      head: $171.value0.head,
+                      tail: $171.value0.tail
                   });
               };
               return v1(true);
@@ -6553,7 +6568,7 @@ var PS = {};
       if (v2 instanceof Data_Maybe.Nothing && v1 instanceof Data_Maybe.Nothing) {
           return Partial_Unsafe.unsafeCrashWith("no new formula?!");
       };
-      throw new Error("Failed pattern match at Derivation line 160, column 3 - line 168, column 3: " + [ v2.constructor.name, v1.constructor.name ]);
+      throw new Error("Failed pattern match at Derivation line 161, column 3 - line 169, column 3: " + [ v2.constructor.name, v1.constructor.name ]);
   };
   var eqForm = new Data_Eq.Eq(function (x) {
       return function (y) {
@@ -6593,6 +6608,9 @@ var PS = {};
           if (x instanceof Ynot && y instanceof Ynot) {
               return Data_Eq.eq(eqForm)(x.value0)(y.value0);
           };
+          if (x instanceof Impl && y instanceof Impl) {
+              return Data_Eq.eq(eqForm)(x.value0)(y.value0) && Data_Eq.eq(eqForm)(x.value1)(y.value1);
+          };
           return false;
       };
   });
@@ -6609,7 +6627,7 @@ var PS = {};
       if (v instanceof RightG) {
           return v["value0"]["new"];
       };
-      throw new Error("Failed pattern match at Derivation line 133, column 8 - line 137, column 23: " + [ v.constructor.name ]);
+      throw new Error("Failed pattern match at Derivation line 134, column 8 - line 138, column 23: " + [ v.constructor.name ]);
   };
   var complete = function (v) {
       if (v instanceof Assertion) {
@@ -6618,7 +6636,7 @@ var PS = {};
       if (v instanceof Conclusion) {
           return Data_Foldable.all(Data_Foldable.foldableArray)(Data_HeytingAlgebra.heytingAlgebraBoolean)(complete)(v.value0.subprfs);
       };
-      throw new Error("Failed pattern match at Derivation line 290, column 1 - line 290, column 29: " + [ v.constructor.name ]);
+      throw new Error("Failed pattern match at Derivation line 298, column 1 - line 298, column 29: " + [ v.constructor.name ]);
   };
   var clickable = function (clss) {
       return function (act) {
@@ -6639,14 +6657,14 @@ var PS = {};
               };
               return Data_Maybe.Nothing.value;
           };
-          return Spork_Html_Elements.span([ Spork_Html_Properties.classes(Data_Semigroup.append(Data_Semigroup.semigroupArray)([ "clickable" ])(clss)), Spork_Html_Events.onMouseDown(function ($399) {
-              return Data_Functor.map(Data_Maybe.functorMaybe)(act)(buttonFor($399));
+          return Spork_Html_Elements.span([ Spork_Html_Properties.classes(Data_Semigroup.append(Data_Semigroup.semigroupArray)([ "clickable" ])(clss)), Spork_Html_Events.onMouseDown(function ($416) {
+              return Data_Functor.map(Data_Maybe.functorMaybe)(act)(buttonFor($416));
           }) ]);
       };
   };
   var renderForm = function (seqix) {
       return function (v) {
-          var pp = [ ppFormH(-1 | 0)(v.form) ];
+          var pp = [ ppFormH(-2 | 0)(v.form) ];
           var p = function (mpart) {
               return function (b) {
                   return new ClickedForm({
@@ -6665,8 +6683,8 @@ var PS = {};
               return clickable([ "side2" ])(p(Data_Maybe.Nothing.value))(pp);
           };
           var clss = (function () {
-              var $230 = Data_Eq.eq(eqRenderTag)(v.tag)(NewFormR.value);
-              if ($230) {
+              var $240 = Data_Eq.eq(eqRenderTag)(v.tag)(NewFormR.value);
+              if ($240) {
                   return [ "new" ];
               };
               return [  ];
@@ -6687,22 +6705,22 @@ var PS = {};
       };
   };
   var renderSequent = function (v) {
-      var turnstile = clickable([  ])(function ($400) {
+      var turnstile = clickable([  ])(function ($417) {
           return ClickedTurnstile.create((function (v1) {
               return {
                   button: v1,
                   mpart: Data_Maybe.Nothing.value
               };
-          })($400));
+          })($417));
       })([ Spork_Html_Core.text(" \u22a2 ") ]);
       var half = function (side) {
-          return function ($401) {
+          return function ($418) {
               return intersperse(Spork_Html_Core.text(", "))(Data_Array.mapWithIndex(function (ix) {
                   return renderForm({
                       side: side,
                       ix: ix
                   });
-              })($401));
+              })($418));
           };
       };
       return Spork_Html_Elements.span([  ])(Data_Semigroup.append(Data_Semigroup.semigroupArray)(half(LHS.value)(v.value0))(Data_Semigroup.append(Data_Semigroup.semigroupArray)([ turnstile ])(half(RHS.value)(v.value1))));
@@ -6728,12 +6746,12 @@ var PS = {};
                       if (prf.value0.wconc instanceof ConcG) {
                           return mapTags(gTag(NewFormR.value)(SideFormR1.value)(SideFormR2.value))(prf.value0.wconc.value0);
                       };
-                      throw new Error("Failed pattern match at Derivation line 364, column 18 - line 366, column 79: " + [ prf.value0.wconc.constructor.name ]);
+                      throw new Error("Failed pattern match at Derivation line 372, column 18 - line 374, column 79: " + [ prf.value0.wconc.constructor.name ]);
                   })();
                   return Data_Functor.map(Spork_Html_Core.functorHtml)(NAction.create)(renderSequent(conc));
               })() ];
           };
-          throw new Error("Failed pattern match at Derivation line 357, column 3 - line 367, column 43: " + [ prf.constructor.name ]);
+          throw new Error("Failed pattern match at Derivation line 365, column 3 - line 375, column 43: " + [ prf.constructor.name ]);
       })());
   };
   var byPart = function (x) {
@@ -6745,7 +6763,7 @@ var PS = {};
               if (v instanceof Part2) {
                   return y;
               };
-              throw new Error("Failed pattern match at Derivation line 110, column 1 - line 110, column 44: " + [ x.constructor.name, y.constructor.name, v.constructor.name ]);
+              throw new Error("Failed pattern match at Derivation line 111, column 1 - line 111, column 44: " + [ x.constructor.name, y.constructor.name, v.constructor.name ]);
           };
       };
   };
@@ -6804,7 +6822,7 @@ var PS = {};
                       if (v.mpart instanceof Data_Maybe.Just) {
                           return new Obligations([ unitaggedEntails(Data_Semigroup.append(Data_Semigroup.semigroupArray)(v1.value0.before)(Data_Semigroup.append(Data_Semigroup.semigroupArray)([ byPart(v1["value0"]["new"].value0)(v1["value0"]["new"].value1)(v.mpart.value0) ])(v1.value0.after)))(v1.value0.cqts) ]);
                       };
-                      throw new Error("Failed pattern match at Derivation line 220, column 17 - line 222, column 78: " + [ v.mpart.constructor.name ]);
+                      throw new Error("Failed pattern match at Derivation line 221, column 17 - line 223, column 78: " + [ v.mpart.constructor.name ]);
                   };
                   if (v1["value0"]["new"] instanceof Zero) {
                       return new Obligations([  ]);
@@ -6822,7 +6840,7 @@ var PS = {};
                       if (v.mpart instanceof Data_Maybe.Just && v.mpart.value0 instanceof Part2) {
                           return new Obligations([ unitaggedEntails(Data_Semigroup.append(Data_Semigroup.semigroupArray)(v1.value0.before)(Data_Semigroup.append(Data_Semigroup.semigroupArray)([ v1["value0"]["new"].value0 ])(v1.value0.after)))(v1.value0.cqts) ]);
                       };
-                      throw new Error("Failed pattern match at Derivation line 225, column 14 - line 228, column 65: " + [ v.mpart.constructor.name ]);
+                      throw new Error("Failed pattern match at Derivation line 226, column 14 - line 229, column 65: " + [ v.mpart.constructor.name ]);
                   };
                   if (v1["value0"]["new"] instanceof Ynot) {
                       if (Data_Foldable.all(Data_Foldable.foldableArray)(Data_HeytingAlgebra.heytingAlgebraBoolean)(isOfc)(Data_Semigroup.append(Data_Semigroup.semigroupArray)(v1.value0.before)(v1.value0.after)) && Data_Foldable.all(Data_Foldable.foldableArray)(Data_HeytingAlgebra.heytingAlgebraBoolean)(isYnot)(v1.value0.cqts)) {
@@ -6832,7 +6850,10 @@ var PS = {};
                           return NoRule.value;
                       };
                   };
-                  throw new Error("Failed pattern match at Derivation line 210, column 3 - line 231, column 33: " + [ v1["value0"]["new"].constructor.name ]);
+                  if (v1["value0"]["new"] instanceof Impl) {
+                      return WrongMode.value;
+                  };
+                  throw new Error("Failed pattern match at Derivation line 211, column 3 - line 233, column 26: " + [ v1["value0"]["new"].constructor.name ]);
               };
               if (v.button instanceof LeftButton && v1 instanceof RightNG) {
                   if (v1["value0"]["new"] instanceof Atom) {
@@ -6865,7 +6886,7 @@ var PS = {};
                       if (v.mpart instanceof Data_Maybe.Just) {
                           return new Obligations([ unitaggedEntails(v1.value0.ants)(Data_Semigroup.append(Data_Semigroup.semigroupArray)(v1.value0.before)(Data_Semigroup.append(Data_Semigroup.semigroupArray)([ byPart(v1["value0"]["new"].value0)(v1["value0"]["new"].value1)(v.mpart.value0) ])(v1.value0.after))) ]);
                       };
-                      throw new Error("Failed pattern match at Derivation line 242, column 17 - line 244, column 78: " + [ v.mpart.constructor.name ]);
+                      throw new Error("Failed pattern match at Derivation line 244, column 17 - line 246, column 78: " + [ v.mpart.constructor.name ]);
                   };
                   if (v1["value0"]["new"] instanceof With) {
                       return new Obligations([ unitaggedEntails(v1.value0.ants)(Data_Semigroup.append(Data_Semigroup.semigroupArray)(v1.value0.before)(Data_Semigroup.append(Data_Semigroup.semigroupArray)([ v1["value0"]["new"].value0 ])(v1.value0.after))), unitaggedEntails(v1.value0.ants)(Data_Semigroup.append(Data_Semigroup.semigroupArray)(v1.value0.before)(Data_Semigroup.append(Data_Semigroup.semigroupArray)([ v1["value0"]["new"].value1 ])(v1.value0.after))) ]);
@@ -6894,12 +6915,21 @@ var PS = {};
                       if (v.mpart instanceof Data_Maybe.Just && v.mpart.value0 instanceof Part2) {
                           return new Obligations([ unitaggedEntails(v1.value0.ants)(Data_Semigroup.append(Data_Semigroup.semigroupArray)(v1.value0.before)(Data_Semigroup.append(Data_Semigroup.semigroupArray)([ v1["value0"]["new"].value0 ])(v1.value0.after))) ]);
                       };
-                      throw new Error("Failed pattern match at Derivation line 252, column 15 - line 255, column 65: " + [ v.mpart.constructor.name ]);
+                      throw new Error("Failed pattern match at Derivation line 254, column 15 - line 257, column 65: " + [ v.mpart.constructor.name ]);
                   };
-                  throw new Error("Failed pattern match at Derivation line 234, column 3 - line 255, column 65: " + [ v1["value0"]["new"].constructor.name ]);
+                  if (v1["value0"]["new"] instanceof Impl) {
+                      return new Obligations([ unitaggedEntails(Data_Array.snoc(v1.value0.ants)(v1["value0"]["new"].value0))(Data_Semigroup.append(Data_Semigroup.semigroupArray)(v1.value0.before)(Data_Semigroup.append(Data_Semigroup.semigroupArray)([ v1["value0"]["new"].value1 ])(v1.value0.after))) ]);
+                  };
+                  throw new Error("Failed pattern match at Derivation line 236, column 3 - line 258, column 70: " + [ v1["value0"]["new"].constructor.name ]);
               };
-              if (v.button instanceof LeftButton && (v1 instanceof LeftG && v1["value0"]["new"] instanceof Par)) {
-                  return new Obligations([ unitaggedEntails(Data_Semigroup.append(Data_Semigroup.semigroupArray)(v1.value0.before.group1)(Data_Semigroup.append(Data_Semigroup.semigroupArray)([ v1["value0"]["new"].value0 ])(v1.value0.after.group1)))(v1.value0.cqts.group1), unitaggedEntails(Data_Semigroup.append(Data_Semigroup.semigroupArray)(v1.value0.before.group2)(Data_Semigroup.append(Data_Semigroup.semigroupArray)([ v1["value0"]["new"].value1 ])(v1.value0.after.group2)))(v1.value0.cqts.group2) ]);
+              if (v.button instanceof LeftButton && v1 instanceof LeftG) {
+                  if (v1["value0"]["new"] instanceof Par) {
+                      return new Obligations([ unitaggedEntails(Data_Semigroup.append(Data_Semigroup.semigroupArray)(v1.value0.before.group1)(Data_Semigroup.append(Data_Semigroup.semigroupArray)([ v1["value0"]["new"].value0 ])(v1.value0.after.group1)))(v1.value0.cqts.group1), unitaggedEntails(Data_Semigroup.append(Data_Semigroup.semigroupArray)(v1.value0.before.group2)(Data_Semigroup.append(Data_Semigroup.semigroupArray)([ v1["value0"]["new"].value1 ])(v1.value0.after.group2)))(v1.value0.cqts.group2) ]);
+                  };
+                  if (v1["value0"]["new"] instanceof Impl) {
+                      return new Obligations([ unitaggedEntails(Data_Semigroup.append(Data_Semigroup.semigroupArray)(v1.value0.before.group1)(v1.value0.after.group1))(Data_Array.snoc(v1.value0.cqts.group1)(v1["value0"]["new"].value0)), unitaggedEntails(Data_Semigroup.append(Data_Semigroup.semigroupArray)(v1.value0.before.group2)(Data_Semigroup.append(Data_Semigroup.semigroupArray)([ v1["value0"]["new"].value1 ])(v1.value0.after.group2)))(v1.value0.cqts.group2) ]);
+                  };
+                  return WrongMode.value;
               };
               if (v.button instanceof LeftButton && (v1 instanceof RightG && v1["value0"]["new"] instanceof Tens)) {
                   return new Obligations([ unitaggedEntails(v1.value0.ants.group1)(Data_Semigroup.append(Data_Semigroup.semigroupArray)(v1.value0.before.group1)(Data_Semigroup.append(Data_Semigroup.semigroupArray)([ v1["value0"]["new"].value0 ])(v1.value0.after.group1))), unitaggedEntails(v1.value0.ants.group2)(Data_Semigroup.append(Data_Semigroup.semigroupArray)(v1.value0.before.group2)(Data_Semigroup.append(Data_Semigroup.semigroupArray)([ v1["value0"]["new"].value1 ])(v1.value0.after.group2))) ]);
@@ -6907,8 +6937,8 @@ var PS = {};
               return WrongMode.value;
           };
           if (v.button instanceof LeftButton) {
-              var $348 = enew(v1);
-              if ($348 instanceof Atom) {
+              var $365 = enew(v1);
+              if ($365 instanceof Atom) {
                   return NoRule.value;
               };
               return v2(true);
@@ -6929,7 +6959,7 @@ var PS = {};
                   if (wconc instanceof ConcG) {
                       return Data_Tuple.Tuple.create(explodeG(wconc.value0))(new ConcNG(mapTags(gTag(NewFormNG.value)(SideFormNG.value)(SideFormNG.value))(wconc.value0)));
                   };
-                  throw new Error("Failed pattern match at Derivation line 340, column 32 - line 344, column 74: " + [ wconc.constructor.name ]);
+                  throw new Error("Failed pattern match at Derivation line 348, column 32 - line 352, column 74: " + [ wconc.constructor.name ]);
               })();
               var v1 = pickRule(rule)(v.value0);
               if (v1 instanceof NoRule) {
@@ -6949,7 +6979,7 @@ var PS = {};
                       wconc: wconc
                   }));
               };
-              throw new Error("Failed pattern match at Derivation line 335, column 24 - line 339, column 57: " + [ v1.constructor.name ]);
+              throw new Error("Failed pattern match at Derivation line 343, column 24 - line 347, column 57: " + [ v1.constructor.name ]);
           };
           while (!$tco_done) {
               $tco_result = $tco_loop($tco_var_rule, $copy_wconc);
@@ -6973,12 +7003,12 @@ var PS = {};
                   return Data_Maybe.fromMaybe(prf)((function () {
                       if (prf instanceof Conclusion && prf.value0.wconc instanceof ConcG) {
                           var chtag = function (seqix$prime) {
-                              var $370 = Data_Eq.eq(Data_Eq.eqRec()(Data_Eq.eqRowCons(Data_Eq.eqRowCons(Data_Eq.eqRowNil)()(new Data_Symbol.IsSymbol(function () {
+                              var $387 = Data_Eq.eq(Data_Eq.eqRec()(Data_Eq.eqRowCons(Data_Eq.eqRowCons(Data_Eq.eqRowNil)()(new Data_Symbol.IsSymbol(function () {
                                   return "side";
                               }))(eqSeqSide))()(new Data_Symbol.IsSymbol(function () {
                                   return "ix";
                               }))(Data_Eq.eqInt)))(seqix$prime)(v.value0.seqix);
-                              if ($370) {
+                              if ($387) {
                                   return gTag(NewFormG.value)(SideFormG2.value)(SideFormG1.value);
                               };
                               return Control_Category.identity(Control_Category.categoryFn);
@@ -6987,12 +7017,12 @@ var PS = {};
                       };
                       var chtag = function (seqix$prime) {
                           return function (v3) {
-                              var $375 = Data_Eq.eq(Data_Eq.eqRec()(Data_Eq.eqRowCons(Data_Eq.eqRowCons(Data_Eq.eqRowNil)()(new Data_Symbol.IsSymbol(function () {
+                              var $392 = Data_Eq.eq(Data_Eq.eqRec()(Data_Eq.eqRowCons(Data_Eq.eqRowCons(Data_Eq.eqRowNil)()(new Data_Symbol.IsSymbol(function () {
                                   return "side";
                               }))(eqSeqSide))()(new Data_Symbol.IsSymbol(function () {
                                   return "ix";
                               }))(Data_Eq.eqInt)))(seqix$prime)(v.value0.seqix);
-                              if ($375) {
+                              if ($392) {
                                   return NewFormNG.value;
                               };
                               return SideFormNG.value;
@@ -7001,25 +7031,25 @@ var PS = {};
                       return applyRule(v.value0.click)(new ConcNG(mapTagsI(chtag)(unitaggedConc(prf))));
                   })());
               };
-              throw new Error("Failed pattern match at Derivation line 307, column 1 - line 307, column 43: " + [ prf.constructor.name, v.constructor.name ]);
+              throw new Error("Failed pattern match at Derivation line 315, column 1 - line 315, column 43: " + [ prf.constructor.name, v.constructor.name ]);
           };
           if (v instanceof ClickedTurnstile && v.value0.button instanceof LeftButton) {
-              var $381 = unitaggedConc(prf);
-              if ($381.value0.length === 1 && $381.value1.length === 1) {
-                  var $382 = Data_Eq.eq(Data_Eq.eqRec()(Data_Eq.eqRowCons(Data_Eq.eqRowCons(Data_Eq.eqRowNil)()(new Data_Symbol.IsSymbol(function () {
+              var $398 = unitaggedConc(prf);
+              if ($398.value0.length === 1 && $398.value1.length === 1) {
+                  var $399 = Data_Eq.eq(Data_Eq.eqRec()(Data_Eq.eqRowCons(Data_Eq.eqRowCons(Data_Eq.eqRowNil)()(new Data_Symbol.IsSymbol(function () {
                       return "tag";
                   }))(Data_Eq.eqUnit))()(new Data_Symbol.IsSymbol(function () {
                       return "form";
-                  }))(eqForm)))($381["value0"][0])($381["value1"][0]);
-                  if ($382) {
+                  }))(eqForm)))($398["value0"][0])($398["value1"][0]);
+                  if ($399) {
                       return new Conclusion({
                           subprfs: [  ],
                           rule: v.value0,
                           wconc: new ConcNG(new Entails([ {
-                              form: $381["value0"][0].form,
+                              form: $398["value0"][0].form,
                               tag: SideFormNG.value
                           } ], [ {
-                              form: $381["value1"][0].form,
+                              form: $398["value1"][0].form,
                               tag: NewFormNG.value
                           } ]))
                       });
@@ -7046,7 +7076,7 @@ var PS = {};
                   wconc: v.value0.wconc
               });
           };
-          throw new Error("Failed pattern match at Derivation line 300, column 1 - line 300, column 35: " + [ v.constructor.name, v1.constructor.name ]);
+          throw new Error("Failed pattern match at Derivation line 308, column 1 - line 308, column 35: " + [ v.constructor.name, v1.constructor.name ]);
       };
   };
   exports["Atom"] = Atom;
@@ -7061,6 +7091,7 @@ var PS = {};
   exports["Top"] = Top;
   exports["Ofc"] = Ofc;
   exports["Ynot"] = Ynot;
+  exports["Impl"] = Impl;
   exports["Entails"] = Entails;
   exports["unitaggedEntails"] = unitaggedEntails;
   exports["LHS"] = LHS;
@@ -7795,7 +7826,7 @@ var PS = {};
       var spaced = function (op) {
           return Text_Parsing_StringParser["try"](Control_Apply.applyFirst(Text_Parsing_StringParser.applyParser)(Control_Apply.applySecond(Text_Parsing_StringParser.applyParser)(Text_Parsing_StringParser_CodePoints.skipSpaces)(Text_Parsing_StringParser_CodePoints.string(op)))(Text_Parsing_StringParser_CodePoints.skipSpaces));
       };
-      return [ [ new Text_Parsing_StringParser_Expr.Prefix(Data_Functor.voidRight(Text_Parsing_StringParser.functorParser)(Derivation.Neg.create)(spaced("~"))), new Text_Parsing_StringParser_Expr.Prefix(Data_Functor.voidRight(Text_Parsing_StringParser.functorParser)(Derivation.Ofc.create)(spaced("!"))), new Text_Parsing_StringParser_Expr.Prefix(Data_Functor.voidRight(Text_Parsing_StringParser.functorParser)(Derivation.Ynot.create)(spaced("?"))) ], [ new Text_Parsing_StringParser_Expr.Infix(Data_Functor.voidRight(Text_Parsing_StringParser.functorParser)(Derivation.Tens.create)(spaced("*")), Text_Parsing_StringParser_Expr.AssocRight.value), new Text_Parsing_StringParser_Expr.Infix(Data_Functor.voidRight(Text_Parsing_StringParser.functorParser)(Derivation.Par.create)(spaced("@")), Text_Parsing_StringParser_Expr.AssocRight.value) ], [ new Text_Parsing_StringParser_Expr.Infix(Data_Functor.voidRight(Text_Parsing_StringParser.functorParser)(Derivation.Plus.create)(spaced("+")), Text_Parsing_StringParser_Expr.AssocRight.value), new Text_Parsing_StringParser_Expr.Infix(Data_Functor.voidRight(Text_Parsing_StringParser.functorParser)(Derivation.With.create)(spaced("&")), Text_Parsing_StringParser_Expr.AssocRight.value) ] ];
+      return [ [ new Text_Parsing_StringParser_Expr.Prefix(Data_Functor.voidRight(Text_Parsing_StringParser.functorParser)(Derivation.Neg.create)(spaced("~"))), new Text_Parsing_StringParser_Expr.Prefix(Data_Functor.voidRight(Text_Parsing_StringParser.functorParser)(Derivation.Ofc.create)(spaced("!"))), new Text_Parsing_StringParser_Expr.Prefix(Data_Functor.voidRight(Text_Parsing_StringParser.functorParser)(Derivation.Ynot.create)(spaced("?"))) ], [ new Text_Parsing_StringParser_Expr.Infix(Data_Functor.voidRight(Text_Parsing_StringParser.functorParser)(Derivation.Tens.create)(spaced("*")), Text_Parsing_StringParser_Expr.AssocRight.value), new Text_Parsing_StringParser_Expr.Infix(Data_Functor.voidRight(Text_Parsing_StringParser.functorParser)(Derivation.Par.create)(spaced("@")), Text_Parsing_StringParser_Expr.AssocRight.value) ], [ new Text_Parsing_StringParser_Expr.Infix(Data_Functor.voidRight(Text_Parsing_StringParser.functorParser)(Derivation.Plus.create)(spaced("+")), Text_Parsing_StringParser_Expr.AssocRight.value), new Text_Parsing_StringParser_Expr.Infix(Data_Functor.voidRight(Text_Parsing_StringParser.functorParser)(Derivation.With.create)(spaced("&")), Text_Parsing_StringParser_Expr.AssocRight.value) ], [ new Text_Parsing_StringParser_Expr.Infix(Data_Functor.voidRight(Text_Parsing_StringParser.functorParser)(Derivation.Impl.create)(spaced("-o")), Text_Parsing_StringParser_Expr.AssocRight.value) ] ];
   })();
   var formParser = function (v) {
       return Control_Apply.applyFirst(Text_Parsing_StringParser.applyParser)(Control_Apply.applySecond(Text_Parsing_StringParser.applyParser)(Text_Parsing_StringParser_CodePoints.skipSpaces)(Text_Parsing_StringParser_Expr.buildExprParser(table)(Control_Lazy.defer(Text_Parsing_StringParser.lazyParser)(expr))))(Text_Parsing_StringParser_CodePoints.skipSpaces);
