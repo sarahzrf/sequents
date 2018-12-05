@@ -20,6 +20,7 @@ data Form
     | Tens Form Form | Par  Form Form | One  | Bot
     | Plus Form Form | With Form Form | Zero | Top
     | Ofc Form | Ynot Form
+    | Impl Form Form
 -- We will need to tag our formulas for UI reasons when they are stored as
 -- application state.
 type Forms = Array Form
@@ -229,6 +230,7 @@ pickRule (RC {button: LeftButton, mpart}) (LeftNG {before, new, after, cqts}) =
     Ynot b | all isOfc (before <> after) && all isYnot cqts ->
              Obligations [before <> [b] <> after |- cqts]
            | otherwise -> NoRule
+    Impl _ _ -> WrongMode
 pickRule (RC {button: LeftButton, mpart})
   (RightNG {ants, before, new, after}) =
   case new of
@@ -253,10 +255,16 @@ pickRule (RC {button: LeftButton, mpart})
       Nothing -> NoRule
       Just Part1 -> Obligations [ants |- before <> after]
       Just Part2 -> Obligations [ants |- before <> [b] <> after]
-pickRule (RC {button: LeftButton})
-  (LeftG {before, new: Par l r, after, cqts}) =
-  Obligations [before.group1 <> [l] <> after.group1 |- cqts.group1,
-               before.group2 <> [r] <> after.group2 |- cqts.group2]
+    Impl l r -> Obligations [ants `snoc` l |- before <> [r] <> after]
+pickRule (RC {button: LeftButton}) (LeftG {before, new, after, cqts}) =
+  case new of
+    Par l r -> Obligations [
+      before.group1 <> [l] <> after.group1 |- cqts.group1,
+      before.group2 <> [r] <> after.group2 |- cqts.group2]
+    Impl l r -> Obligations [
+      before.group1 <> after.group1 |- cqts.group1 `snoc` l,
+      before.group2 <> [r] <> after.group2 |- cqts.group2]
+    _ -> WrongMode
 pickRule (RC {button: LeftButton})
   (RightG {ants, before, new: Tens l r, after}) =
   Obligations [ants.group1 |- before.group1 <> [l] <> after.group1,
@@ -396,7 +404,7 @@ renderSequent seq@(Entails ants cqts) =
 renderForm :: SeqIx -> TaggedForm RenderTag -> Html NodeAction
 renderForm seqix {form, tag} =
   let p mpart = \b -> ClickedForm {click: {button: b, mpart}, seqix}
-      pp = [ppFormH (-1) form]
+      pp = [ppFormH (-2) form]
   in case tag of
     SideFormR1 -> clickable ["side1"] (p Nothing) pp
     SideFormR2 -> clickable ["side2"] (p Nothing) pp
@@ -433,6 +441,7 @@ ppForm prec form = case form of
   Top  -> "⊤"
   Ofc  b -> p 4 $ "!" <> ppForm 4 b
   Ynot b -> p 4 $ "?" <> ppForm 4 b
+  Impl l r -> p (-1) $ ppForm 0 l <> " ⊸ " <> ppForm (-1) r
   where p prec' s | prec <= prec' = s
                   | otherwise = "(" <> s <> ")"
 

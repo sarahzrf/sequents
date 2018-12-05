@@ -24,7 +24,8 @@ table = [
   [Infix (Tens <$ spaced "*") AssocRight,
    Infix (Par <$ spaced "@") AssocRight],
   [Infix (Plus <$ spaced "+") AssocRight,
-   Infix (With <$ spaced "&") AssocRight]]
+   Infix (With <$ spaced "&") AssocRight],
+  [Infix (Impl <$ spaced "-o") AssocRight]]
   where spaced op = try $ skipSpaces *> string op <* skipSpaces
 
 expr :: Unit -> Parser Form
