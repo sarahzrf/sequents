@@ -11,7 +11,6 @@ import Spork.PureApp as PureApp
 
 import Derivation (Form(..))
 import Derivation as D
-import Parse
 
 main :: Effect Unit
 main = unit <$ PureApp.makeWithSelector app "body"
@@ -33,8 +32,8 @@ data Action = DerAction D.Action | Input String | Submit
 update :: Model -> Action -> Model
 update mod@{prf} (DerAction dact) = mod{prf = D.update prf dact}
 update mod (Input s) = mod{input = s}
-update mod@{input} Submit = case runParser sequentParser input of
-  Left err -> case runParser (formParser unit) input of
+update mod@{input} Submit = case runParser D.sequentParser input of
+  Left err -> case runParser (D.formParser unit) input of
     Left _ -> mod -- TODO show error message somehow?
     Right form -> {input: "", prf: D.Assertion $ [] D.|- [form]}
   Right seq -> {input: "", prf: D.Assertion seq}

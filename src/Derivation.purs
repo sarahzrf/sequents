@@ -10,7 +10,17 @@ import Data.Function
 
 import Spork.Html (Html)
 import Spork.Html as H
-import Web.UIEvent.MouseEvent as E
+import Web.UIEvent.MouseEvent as ME
+import Web.UIEvent.KeyboardEvent as KE
+
+import Text.Parsing.StringParser
+import Text.Parsing.StringParser.CodePoints
+import Text.Parsing.StringParser.Combinators
+import Text.Parsing.StringParser.Expr
+import Data.Either
+import Control.Lazy
+import Control.Alternative
+import Data.List as L
 
 -- MODEL
 
@@ -21,6 +31,7 @@ data Form
     | Plus Form Form | With Form Form | Zero | Top
     | Ofc Form | Ynot Form
     | Impl Form Form
+    | Forall2 String Form | Exists2 String Form
 -- We will need to tag our formulas for UI reasons when they are stored as
 -- application state.
 type Forms = Array Form
@@ -50,13 +61,15 @@ mapTags :: forall tag tag'. (tag -> tag') ->
   TaggedSequent tag -> TaggedSequent tag'
 mapTags = mapTagsI <<< const
 
--- If we have some end-sequent G |- D, then in general there are three things
+-- If we have some end-sequent G |- D, then in general there are four things
 -- we might need in order to specify a choice of (non-Cut, non-Ax)
 -- fully-instantiated rule producing G |- D:
 -- 1. Which formula in the sequent is being introduced.
 -- 2. Which rule is being used to introduce it.
 -- 3. For some rules, a division of the side formulas into subparts to be
 --    distributed between the premises of the rule.
+-- 4. For some of the quantifier rules, something to instantiate the bound
+--    variable with.
 --
 -- We indicate #1 by clicking on the formula. Since there are in general only a
 -- few candidate rules once the connective being introduced is known, we can
@@ -64,7 +77,9 @@ mapTags = mapTagsI <<< const
 -- the formula we click. For #3, we will only be considering rules with exactly
 -- two metavariables on each side for groups of side formulas, so we will allow
 -- side formulas to be toggled between the two groups by clicking on them
--- subsequent to clicking on the connective to be introduced.
+-- subsequent to clicking on the connective to be introduced. For #4, we'll
+-- open a little dropdown textbox below the formula being introduced (once it
+-- has been clicked to select it) and let the user enter something.
 
 -- We'll represent data #1 and #2 using tags on the formulas in the sequent.
 
@@ -103,9 +118,11 @@ data FormPart = Part1 | Part2
 type Click = {button :: Button, mpart :: Maybe FormPart}
 -- The UI code will send a Click whenever the user actually clicks, but in some
 -- cases those clicks will mean something like toggling or canceling rather
--- than an actual choice of rule. A Click will be put into this newtype if we
--- have processed it to the point of knowing that it will serve to pick a rule.
-newtype RuleChoice = RC Click
+-- than an actual choice of rule. A Click will be put into this type if we have
+-- processed it to the point of knowing that it will serve to pick a rule.
+-- The second field contains the formula with which to instantiate a quantifier
+-- rule, if one has been given.
+data RuleChoice = RC Click (Maybe Form)
 
 -- Eliminator for convenience.
 byPart :: forall a. a -> a -> FormPart -> a
@@ -184,6 +201,52 @@ isYnot :: Form -> Boolean
 isYnot (Ynot _) = true
 isYnot _ = false
 
+freeInForm :: String -> Form -> Boolean
+freeInForm a form = case form of
+  Atom a' -> a == a'
+  Neg b -> freeInForm a b
+  Tens l r -> freeInForm a l || freeInForm a r
+  Par  l r -> freeInForm a l || freeInForm a r
+  One -> false
+  Bot -> false
+  Plus l r -> freeInForm a l || freeInForm a r
+  With l r -> freeInForm a l || freeInForm a r
+  Zero -> false
+  Top  -> false
+  Ofc  b -> freeInForm a b
+  Ynot b -> freeInForm a b
+  Impl l r -> freeInForm a l || freeInForm a r
+  Forall2 a' b -> if a == a' then false else freeInForm a b
+  Exists2 a' b -> if a == a' then false else freeInForm a b
+
+freshen :: String -> Array Form -> String
+freshen a from | all (not <<< freeInForm a) from = a
+               | otherwise = freshen (a <> "'") from
+
+subst :: Form -> String -> Form -> Form
+subst arg a into = case into of
+  Atom a' -> if a' == a then arg else into
+  Neg b -> Neg (subst arg a b)
+  Tens l r -> Tens (subst arg a l) (subst arg a r)
+  Par  l r -> Par  (subst arg a l) (subst arg a r)
+  One -> One
+  Bot -> Bot
+  Plus l r -> Plus (subst arg a l) (subst arg a r)
+  With l r -> With (subst arg a l) (subst arg a r)
+  Zero -> Zero
+  Top  -> Top
+  Ofc  b -> Ofc (subst arg a b)
+  Ynot b -> Ynot (subst arg a b)
+  Impl l r -> Impl (subst arg a l) (subst arg a r)
+  Forall2 a' b | a' == a -> into
+               | otherwise ->
+                 let a'' = freshen a' [arg]
+                 in Forall2 a'' (subst arg a (subst (Atom a'') a' b))
+  Exists2 a' b | a' == a -> into
+               | otherwise ->
+                 let a'' = freshen a' [arg]
+                 in Exists2 a'' (subst arg a (subst (Atom a'') a' b))
+
 -- Here's the real meat of the sequent calculus logic.
 -- The next function takes a provoking click and an exploded sequent, and it
 -- replies with one of:
@@ -196,8 +259,8 @@ data PickAction
     -- There is a rule with a suitable conclusion, and here are its premises.
     | Obligations (Array Sequent)
 pickRule :: RuleChoice -> ExplodedSequent -> PickAction
-pickRule (RC {button: MiddleButton}) _ = NoRule
-pickRule (RC {button: RightButton}) eseq = case eseq of
+pickRule (RC {button: MiddleButton} _) _ = NoRule
+pickRule (RC {button: RightButton} _) eseq = case eseq of
   LeftNG  o@{before, new: new@(Ofc b), after, cqts} ->
     Obligations [before <> [new, new] <> after |- cqts]
   RightNG o@{ants, before, new: new@(Ynot b), after} ->
@@ -206,8 +269,9 @@ pickRule (RC {button: RightButton}) eseq = case eseq of
   RightG o@{new: Ynot b} -> WrongMode
   _ -> NoRule
 -- atoms have no rules
-pickRule (RC {button: LeftButton}) eseq | Atom _ <- enew eseq = NoRule
-pickRule (RC {button: LeftButton, mpart}) (LeftNG {before, new, after, cqts}) =
+pickRule (RC {button: LeftButton} _) eseq | Atom _ <- enew eseq = NoRule
+pickRule (RC {button: LeftButton, mpart} inst)
+    (LeftNG {before, new, after, cqts}) =
   case new of
     Atom _ -> NoRule -- already covered above, but compiler doesn't know
     Neg b -> Obligations [before <> after |- cqts `snoc` b]
@@ -231,7 +295,13 @@ pickRule (RC {button: LeftButton, mpart}) (LeftNG {before, new, after, cqts}) =
              Obligations [before <> [b] <> after |- cqts]
            | otherwise -> NoRule
     Impl _ _ -> WrongMode
-pickRule (RC {button: LeftButton, mpart})
+    Forall2 a b -> case inst of
+      Nothing -> NoRule
+      Just arg -> Obligations [before <> [subst arg a b] <> after |- cqts]
+    Exists2 a b ->
+      let fresh = Atom (freshen a (before <> [new] <> after <> cqts))
+      in Obligations [before <> [subst fresh a b] <> after |- cqts]
+pickRule (RC {button: LeftButton, mpart} inst)
   (RightNG {ants, before, new, after}) =
   case new of
     Atom _ -> NoRule -- already covered above, but compiler doesn't know
@@ -256,7 +326,13 @@ pickRule (RC {button: LeftButton, mpart})
       Just Part1 -> Obligations [ants |- before <> after]
       Just Part2 -> Obligations [ants |- before <> [b] <> after]
     Impl l r -> Obligations [ants `snoc` l |- before <> [r] <> after]
-pickRule (RC {button: LeftButton}) (LeftG {before, new, after, cqts}) =
+    Forall2 a b ->
+      let fresh = Atom (freshen a (ants <> before <> [new] <> after))
+      in Obligations [ants |- before <> [subst fresh a b] <> after]
+    Exists2 a b -> case inst of
+      Nothing -> NoRule
+      Just arg -> Obligations [ants |- before <> [subst arg a b] <> after]
+pickRule (RC {button: LeftButton} _) (LeftG {before, new, after, cqts}) =
   case new of
     Par l r -> Obligations [
       before.group1 <> [l] <> after.group1 |- cqts.group1,
@@ -265,7 +341,7 @@ pickRule (RC {button: LeftButton}) (LeftG {before, new, after, cqts}) =
       before.group1 <> after.group1 |- cqts.group1 `snoc` l,
       before.group2 <> [r] <> after.group2 |- cqts.group2]
     _ -> WrongMode
-pickRule (RC {button: LeftButton})
+pickRule (RC {button: LeftButton} _)
   (RightG {ants, before, new: Tens l r, after}) =
   Obligations [ants.group1 |- before.group1 <> [l] <> after.group1,
                ants.group2 |- before.group2 <> [r] <> after.group2]
@@ -273,11 +349,15 @@ pickRule _ _ = WrongMode
 
 -- Model is a recursive type---each sub-derivation will be a Model, not just
 -- the root one. So the choice of mode only indicates the interaction state of
--- the *root* of the derivation.
+-- the *root* of the derivation described by the value.
 data Model
   -- A derivation for which we have not yet picked a rule to apply. In this
   -- mode, clicking on a formula indicates an attempt to introduce it.
   = Assertion Sequent
+  -- A derivation where a quantifier formula has been selected to introduce
+  -- whose rule will need a choice of formula for instantiation, so a text box
+  -- is being shown to allow the user to enter one.
+  | Instantiating {conc :: Sequent, seqix :: SeqIx, input :: String}
   -- A derivation whose end-sequent is the conclusion of a rule.
   | Conclusion {subprfs :: Array Model,
                 rule :: RuleChoice, wconc :: Conclusion}
@@ -292,25 +372,32 @@ data Conclusion
 
 unitaggedConc :: Model -> Sequent
 unitaggedConc (Assertion conc) = conc
+unitaggedConc (Instantiating {conc}) = conc
 unitaggedConc (Conclusion {wconc: ConcNG conc}) = mapTags (const unit) conc
 unitaggedConc (Conclusion {wconc: ConcG  conc}) = mapTags (const unit) conc
 
 complete :: Model -> Boolean
 complete (Assertion _) = false
+complete (Instantiating _) = false
 complete (Conclusion {subprfs}) = all complete subprfs
 
 -- UPDATE
 
 data NodeAction = ClickedTurnstile Click |
-  ClickedForm {click :: Click, seqix :: SeqIx}
+  PickedForm {click :: Click, seqix :: SeqIx, inst :: Maybe Form} |
+  -- Clicking a quantifier that needs a formula to instantiate with will
+  -- produce a NeedInstantiation rather than a PickedForm. Subsequently,
+  -- interaction with the spawned text box and button will produce Input and
+  -- Submit actions.
+  NeedInstantiation SeqIx | Input String | Submit
 data Action = ChildAction Int Action | NAction NodeAction
 
 update :: Model -> Action -> Model
 update prf (NAction nact) = updateNode prf nact
-update prf@(Assertion _) _ = prf
 update (Conclusion o@{subprfs}) (ChildAction ix act) =
   Conclusion o{subprfs =
     fromMaybe subprfs (modifyAt ix (flip update act) subprfs)}
+update prf _ = prf
 
 updateNode :: Model -> NodeAction -> Model
 updateNode prf (ClickedTurnstile {button: MiddleButton}) = prf
@@ -319,25 +406,37 @@ updateNode prf (ClickedTurnstile {button: RightButton}) =
 updateNode prf (ClickedTurnstile click@{button: LeftButton})
   | conc@(Entails [ant] [cqt]) <- unitaggedConc prf,
     ant == cqt =
-    Conclusion {subprfs: [], rule: RC click,
+    Conclusion {subprfs: [], rule: RC click Nothing,
     wconc: ConcNG (Entails [ant{tag = SideFormNG}] [cqt{tag = NewFormNG}])}
   | otherwise = prf
 -- Necessary assumption for invariant to be preserved: seqix exists in the
 -- end-sequent.
 -- ...is that actually safe to assume?...
--- TODO There are a few kinds of interaction to add (left-clicking the nw
+-- TODO There are a few kinds of interaction to add (left-clicking the new
 -- formula should cancel, etc).
-updateNode prf nact@(ClickedForm {click, seqix}) = fromMaybe prf $ case prf of
+updateNode prf (PickedForm {click, seqix, inst}) = fromMaybe prf $ case prf of
   Conclusion {rule, wconc: ConcG conc} ->
     let chtag seqix' = if seqix' == seqix
           then gTag NewFormG SideFormG2 SideFormG1 else identity
     -- Note that we reuse the saved rule choice rather than wrapping the new
     -- click, since the new click is a toggle and not a rule choice.
     in applyRule rule (ConcG (mapTagsI chtag conc))
-  -- Clicking does the same thing in Assertion and ConcNG.
+  -- Clicking does the same thing in Assertion, Instantiating, and ConcNG.
   _ ->
     let chtag seqix' _ = if seqix' == seqix then NewFormNG else SideFormNG
-    in applyRule (RC click) (ConcNG (mapTagsI chtag (unitaggedConc prf)))
+    in applyRule (RC click inst) (ConcNG (mapTagsI chtag (unitaggedConc prf)))
+updateNode prf (NeedInstantiation seqix) =
+  Instantiating {conc: unitaggedConc prf, seqix, input: ""}
+updateNode prf (Input s) = case prf of
+  Instantiating o -> Instantiating o{input = s}
+  _ -> prf -- Shouldn't happen?
+updateNode prf Submit = case prf of
+  Instantiating {conc, seqix, input}
+    | Right form <- runParser (formParser unit) input ->
+      let nact' = PickedForm {click: {button: LeftButton, mpart: Nothing},
+                              seqix, inst: Just form}
+      in updateNode prf nact'
+  _ -> prf
 
 applyRule :: RuleChoice -> Conclusion -> Maybe Model
 applyRule rule wconc = case pickRule rule exploded of
@@ -355,7 +454,11 @@ applyRule rule wconc = case pickRule rule exploded of
 
 -- We'll translate all tags into this one sum type for the benefit of the
 -- renderForm function.
-data RenderTag = NewFormR | SideFormR | SideFormR1 | SideFormR2
+data RenderTag
+  = NewFormR | SideFormR | SideFormR1 | SideFormR2
+  -- This tag indicates that the formula has a textbox with the given input
+  -- associated to it.
+  | HasInput String
 
 derive instance eqRenderTag :: Eq RenderTag
 
@@ -363,8 +466,11 @@ renderDerivation :: Model -> Html Action
 renderDerivation prf =
   H.div [H.classes ["derivation", guard (complete prf) "complete"]]
   case prf of
-    Assertion conc ->
-      [map NAction (renderSequent (mapTags (const SideFormR) conc))]
+    Assertion conc -> [renderConc (mapTags (const SideFormR) conc)]
+    Instantiating {conc, seqix, input} ->
+      let chtag seqix' = if seqix' == seqix
+            then const (HasInput input) else const SideFormR
+       in [renderConc (mapTagsI chtag conc)]
     Conclusion {subprfs, wconc} -> [
       let rsp ix subprf = map (ChildAction ix) (renderDerivation subprf)
       in H.div [] (mapWithIndex rsp subprfs),
@@ -372,7 +478,8 @@ renderDerivation prf =
       let conc = case wconc of
             ConcNG conc -> mapTags (ngTag NewFormR SideFormR) conc
             ConcG  conc -> mapTags (gTag  NewFormR SideFormR1 SideFormR2) conc
-      in map NAction (renderSequent conc)]
+      in renderConc conc]
+  where renderConc = map NAction <<< renderSequent
 
 -- TODO inefficient!!!
 intersperse :: forall a. a -> Array a -> Array a
@@ -385,7 +492,7 @@ clickable :: forall act.
   Array String -> (Button -> act) -> Array (Html act) -> Html act
 clickable clss act = H.span [H.classes (["clickable"] <> clss),
   H.onMouseDown (map act <<< buttonFor)]
-  where buttonFor e = case E.button e, E.ctrlKey e of
+  where buttonFor e = case ME.button e, ME.ctrlKey e of
           0, false -> Just LeftButton
           0, true -> Just MiddleButton
           1, _ -> Just MiddleButton
@@ -403,11 +510,27 @@ renderSequent seq@(Entails ants cqts) =
 
 renderForm :: SeqIx -> TaggedForm RenderTag -> Html NodeAction
 renderForm seqix {form, tag} =
-  let p mpart = \b -> ClickedForm {click: {button: b, mpart}, seqix}
-      pp = [ppFormH (-2) form]
+  let p mpart b = PickedForm {click: {button: b, mpart}, seqix, inst: Nothing}
+      clickedQuantifier b = case b of
+        LeftButton -> NeedInstantiation seqix
+        _ -> p Nothing b
+      key ev = case KE.key ev of
+        "Enter" -> Just Submit
+        "Escape" ->
+          Just (ClickedTurnstile {button: RightButton, mpart: Nothing})
+        _ -> Nothing
+      pp = [ppFormH (-3) form]
   in case tag of
     SideFormR1 -> clickable ["side1"] (p Nothing) pp
     SideFormR2 -> clickable ["side2"] (p Nothing) pp
+    HasInput s -> H.span [] [
+      H.span [H.classes ["dropdown"]] [
+        -- TODO Is there any way to get this to have focus when it's created
+        -- without having to completely change the type of the update function
+        -- to allow effects???
+        H.input [H.value s, H.onValueInput (H.always Input), H.onKeyDown key],
+        H.button [H.onClick (H.always (const Submit))] [H.text "Instantiate"]],
+      renderForm seqix {form, tag: NewFormR}]
     _ ->
       let clss = if tag == NewFormR then ["new"] else []
       in case seqix.side, form of
@@ -423,6 +546,8 @@ renderForm seqix {form, tag} =
         RHS, Ynot b -> clickable clss (p Nothing) [
           clickable [] (p (Just Part1)) [H.text "?"],
           clickable [] (p (Just Part2)) [ppFormH 4 b]]
+        LHS, Forall2 a b -> clickable clss clickedQuantifier pp
+        RHS, Exists2 a b -> clickable clss clickedQuantifier pp
         _, _ -> clickable clss (p Nothing) pp
 
 -- precedence logic totally ripped off from
@@ -442,9 +567,44 @@ ppForm prec form = case form of
   Ofc  b -> p 4 $ "!" <> ppForm 4 b
   Ynot b -> p 4 $ "?" <> ppForm 4 b
   Impl l r -> p (-1) $ ppForm 0 l <> " ⊸ " <> ppForm (-1) r
+  Forall2 a b -> p (-2) $ "∀" <> a <> "." <> ppForm (-2) b
+  Exists2 a b -> p (-2) $ "∃" <> a <> "." <> ppForm (-2) b
   where p prec' s | prec <= prec' = s
                   | otherwise = "(" <> s <> ")"
 
 ppFormH :: forall act. Int -> Form -> Html act
 ppFormH prec = H.text <<< ppForm prec
+
+
+-- TODO improve parser
+-- e.g., notice garbage at end
+
+formParser :: Unit -> Parser Form
+formParser _ = skipSpaces *> buildExprParser table (defer expr) <* skipSpaces
+
+table :: OperatorTable Form
+table = [
+  [Prefix (Neg <$ spaced "~"), Prefix (Ofc <$ spaced "!"),
+   Prefix (Ynot <$ spaced "?")],
+  [Infix (Tens <$ spaced "*") AssocRight,
+   Infix (Par <$ spaced "@") AssocRight],
+  [Infix (Plus <$ spaced "+") AssocRight,
+   Infix (With <$ spaced "&") AssocRight],
+  [Infix (Impl <$ spaced "-o") AssocRight],
+  [Prefix (Forall2 <$ spaced "forall" <*> regex "\\w[\\w']*" <* spaced ","),
+   Prefix (Exists2 <$ spaced "exists" <*> regex "\\w[\\w']*"  <* spaced ",")]]
+  where spaced op = try $ skipSpaces *> string op <* skipSpaces
+
+expr :: Unit -> Parser Form
+expr _ = char '(' *> defer formParser <* char ')' <|>
+  One  <$ string "1" <|>
+  Bot  <$ string "F" <|>
+  Zero <$ string "0" <|>
+  Top  <$ string "T" <|>
+  Atom <$> regex "\\w[\\w']*"
+
+sequentParser :: Parser Sequent
+sequentParser = (|-) <$> forms <*> (string "|-" *> forms)
+  where forms = map L.toUnfoldable $
+    skipSpaces *> (formParser unit `sepBy` char ',') <* skipSpaces
 
