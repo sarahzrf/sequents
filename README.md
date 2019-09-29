@@ -1,14 +1,17 @@
 # sequents
 
-A blatant ripoff of [Logitext], with branches implementing the propositional
+A blatant ripoff of [Logitext], with variants implementing the propositional
 fragments of systems LK, LJ, and two-sided classical linear logic (as presented
 [here][CLLCalc]). Try it out: [LK], [LJ], [CLL].
 
+NOTE: The CLL variant actually supports second-order quantifiers (basically,
+System F); need to document this.
+
 [Logitext]: http://logitext.mit.edu/main
 [CLLCalc]: http://llwiki.ens-lyon.fr/mediawiki/index.php/Sequent_calculus
-[LK]:  https://benzrf.github.io/sequents/lk
-[LJ]:  https://benzrf.github.io/sequents/lj
-[CLL]: https://benzrf.github.io/sequents/cll
+[LK]:  https://benzrf.github.io/sequents/?system=lk
+[LJ]:  https://benzrf.github.io/sequents/?system=lj
+[CLL]: https://benzrf.github.io/sequents/?system=cll
 
 ## Usage
 ### Interaction
