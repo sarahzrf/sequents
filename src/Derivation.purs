@@ -203,8 +203,12 @@ derive instance functorPickAction :: Functor PickAction
 class Calculus form where
   pickRule :: RuleChoice form -> ExplodedSequent form -> PickAction form
   formParser :: Unit -> Parser form
-  -- this lets us use alpha equivalence for the Axiom if we have quantifiers
+  -- This lets us use alpha equivalence for the Axiom if we have quantifiers.
   equiv :: form -> form -> Boolean
+  -- This lets us run user-entered sequents by the calculus to make sure
+  -- they're valid (e.g.: LJ sequents should not have multiple conclusions,
+  -- one-sided CLL sequents should not have anything on the left).
+  okInitial :: Sequent form -> Boolean
 
 -- Model is a recursive type---each sub-derivation will be a Model, not just
 -- the root one. So the choice of mode only indicates the interaction state of

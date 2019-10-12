@@ -1,23 +1,28 @@
 # sequents
 
 A blatant ripoff of [Logitext], with variants implementing the propositional
-fragments of systems LK, LJ, and two-sided classical linear logic (as presented
-[here][CLLCalc]). Try it out: [LK], [LJ], [CLL].
+fragments of systems LK, LJ, two-sided classical linear logic, and one-sided
+classical linear logic (both forms of CLL as presented [here][CLLCalc], except
+that the one-sided version only allows the Axiom rule to be applied to atoms
+(this is currently a bug, not a feature 🙁)). Try it out: [LK], [LJ], [CLL],
+[RCLL].
 
-NOTE: The CLL variant actually supports second-order quantifiers (basically,
-System F); need to document this.
+NOTE: The {,R}CLL variant actually supports second-order quantifiers
+(basically, System F); need to document this.
 
 [Logitext]: http://logitext.mit.edu/main
 [CLLCalc]: http://llwiki.ens-lyon.fr/mediawiki/index.php/Sequent_calculus
-[LK]:  https://benzrf.github.io/sequents/?system=lk
-[LJ]:  https://benzrf.github.io/sequents/?system=lj
-[CLL]: https://benzrf.github.io/sequents/?system=cll
+[LK]:   https://benzrf.github.io/sequents/?system=lk
+[LJ]:   https://benzrf.github.io/sequents/?system=lj
+[CLL]:  https://benzrf.github.io/sequents/?system=cll
+[RCLL]: https://benzrf.github.io/sequents/?system=rcll
 
 ## Usage
 ### Interaction
 Just like in Logitext, the fundamental interaction model is that you click on a
 formula to apply a rule introducing it. To apply the Axiom rule, left-click the
-turnstile; to reset a subproof, right-click the turnstile.
+turnstile (except in one-sided CLL, where you must click on the non-negated
+atom); to reset a subproof, right-click the turnstile.
 
 There are some special cases:
 

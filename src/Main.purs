@@ -6,6 +6,7 @@ import Effect.Exception
 import Text.Parsing.StringParser
 import Text.Parsing.StringParser.CodePoints
 import Text.Parsing.StringParser.Combinators
+import Control.MonadZero
 import Data.Either
 import Data.Array
 import Data.Maybe
@@ -26,6 +27,7 @@ import Text.Parsing.Parser as TP
 import LK as LK
 import LJ as LJ
 import CLL2 as CLL2
+import RCLL2 as RCLL2
 import Derivation as D
 
 main :: Effect Unit
@@ -46,6 +48,8 @@ main = window >>= \win -> catchException (flip alert win <<< message) do
       PureApp.makeWithSelector {init: initLJ, update, render} "body"
     Just "cll" -> unit <$
       PureApp.makeWithSelector {init: initCLL2, update, render} "body"
+    Just "rcll" -> unit <$
+      PureApp.makeWithSelector {init: initRCLL2, update, render} "body"
     _ -> throw "unknown system"
 
 type Model form = {input :: String, prf :: D.Model form}
@@ -65,10 +69,18 @@ initCLL2 = {input: "", prf: D.Assertion $
     either (\_ -> unsafeCrashWith "?") identity (runParser sequentParser prop)}
   where prop = "|- !(A & B) -o !A * !B"
 
+initRCLL2 :: Model RCLL2.Form
+initRCLL2 = {input: "", prf: D.Assertion $
+    either (\_ -> unsafeCrashWith "?") identity (runParser sequentParser prop)}
+  where prop = "|- !(A & B) -o !A * !B"
+
 data Action form = DerAction (D.Action form) | Input String | Submit
 
 sequentParser :: forall form. D.Calculus form => Parser (D.Sequent form)
-sequentParser = D.(|-) <$> forms <*> (string "|-" *> forms)
+sequentParser = do
+    seq <- D.(|-) <$> forms <*> (string "|-" *> forms)
+    guard (D.okInitial seq)
+    pure seq
   where forms = map L.toUnfoldable $
     skipSpaces *> (D.formParser unit `sepBy` char ',') <* skipSpaces
 

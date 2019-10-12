@@ -115,6 +115,7 @@ instance lkCalculus :: Calculus Form where
   pickRule = pickRule
   formParser = formParser
   equiv = (==)
+  okInitial = const true
 instance lkRender :: RenderForm Form where
   renderForm = renderForm
 

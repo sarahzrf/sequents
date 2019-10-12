@@ -21,6 +21,7 @@ instance ljCalculus :: Calculus Form where
     pa -> pa
   formParser _ = map J (formParser unit)
   equiv = (==)
+  okInitial (Entails _ cqts) = length cqts <= 1
 
 instance ljRender :: RenderForm Form where
   renderForm seqix {form: J form, tag} =
