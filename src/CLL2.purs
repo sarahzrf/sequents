@@ -25,7 +25,7 @@ data Form
     | Impl Form Form
     | Forall2 String Form | Exists2 String Form
 
--- TODO We actually want alpha-equivalence...
+
 derive instance eqForm :: Eq Form
 
 freeInForm :: String -> Form -> Boolean
@@ -73,6 +73,30 @@ subst arg a into = case into of
                | otherwise ->
                  let a'' = freshen a' [arg]
                  in Exists2 a'' (subst arg a (subst (Atom a'') a' b))
+
+-- alpha equivalence
+aeq :: Form -> Form -> Boolean
+aeq form1 form2 = case form1, form2 of
+  Atom a, Atom a' -> a == a'
+  Neg b, Neg b' -> aeq b b'
+  Tens l r, Tens l' r' -> aeq l l' && aeq r r'
+  Par  l r, Par  l' r' -> aeq l l' && aeq r r'
+  One, One -> true
+  Bot, Bot -> true
+  Plus l r, Plus l' r' -> aeq l l' && aeq r r'
+  With l r, With l' r' -> aeq l l' && aeq r r'
+  Zero, Zero -> true
+  Top,  Top  -> true
+  Ofc  b, Ofc  b' -> aeq b b'
+  Ynot b, Ynot b' -> aeq b b'
+  Impl l r, Impl l' r' -> aeq l l' && aeq r r'
+  Forall2 a b, Forall2 a' b' ->
+    let a'' = freshen a [b, b', Atom a, Atom a']
+    in aeq (subst (Atom a'') a b) (subst (Atom a'') a' b')
+  Exists2 a b, Exists2 a' b' ->
+    let a'' = freshen a [b, b', Atom a, Atom a']
+    in aeq (subst (Atom a'') a b) (subst (Atom a'') a' b')
+  _, _ -> false
 
 -- Useful below.
 isOfc :: Form -> Boolean
@@ -269,6 +293,7 @@ expr _ = char '(' *> defer formParser <* char ')' <|>
 instance cllCalculus :: Calculus Form where
   pickRule = pickRule
   formParser = formParser
+  equiv = aeq
 instance cllRender :: RenderForm Form where
   renderForm = renderForm
 

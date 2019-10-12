@@ -200,9 +200,11 @@ data PickAction form
 
 derive instance functorPickAction :: Functor PickAction
 
-class Eq form <= Calculus form where
+class Calculus form where
   pickRule :: RuleChoice form -> ExplodedSequent form -> PickAction form
   formParser :: Unit -> Parser form
+  -- this lets us use alpha equivalence for the Axiom if we have quantifiers
+  equiv :: form -> form -> Boolean
 
 -- Model is a recursive type---each sub-derivation will be a Model, not just
 -- the root one. So the choice of mode only indicates the interaction state of
@@ -265,7 +267,7 @@ updateNode prf (ClickedTurnstile {button: RightButton}) =
   Assertion (unitaggedConc prf)
 updateNode prf (ClickedTurnstile click@{button: LeftButton})
   | conc@(Entails [ant] [cqt]) <- unitaggedConc prf,
-    ant == cqt =
+    equiv ant.form cqt.form =
     Conclusion {subprfs: [], rule: RC click Nothing,
     wconc: ConcNG (Entails [ant{tag = SideFormNG}] [cqt{tag = NewFormNG}])}
   | otherwise = prf

@@ -114,6 +114,7 @@ expr _ = char '(' *> defer formParser <* char ')' <|> Atom <$> regex "\\w+"
 instance lkCalculus :: Calculus Form where
   pickRule = pickRule
   formParser = formParser
+  equiv = (==)
 instance lkRender :: RenderForm Form where
   renderForm = renderForm
 

@@ -20,6 +20,7 @@ instance ljCalculus :: Calculus Form where
       | otherwise -> NoRule
     pa -> pa
   formParser _ = map J (formParser unit)
+  equiv = (==)
 
 instance ljRender :: RenderForm Form where
   renderForm seqix {form: J form, tag} =
