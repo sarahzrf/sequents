@@ -12,10 +12,10 @@ NOTE: The {,R}CLL variant actually supports second-order quantifiers
 
 [Logitext]: http://logitext.mit.edu/main
 [CLLCalc]: http://llwiki.ens-lyon.fr/mediawiki/index.php/Sequent_calculus
-[LK]:   https://benzrf.github.io/sequents/?system=lk
-[LJ]:   https://benzrf.github.io/sequents/?system=lj
-[CLL]:  https://benzrf.github.io/sequents/?system=cll
-[RCLL]: https://benzrf.github.io/sequents/?system=rcll
+[LK]:   https://sarahzrf.github.io/sequents/?system=lk
+[LJ]:   https://sarahzrf.github.io/sequents/?system=lj
+[CLL]:  https://sarahzrf.github.io/sequents/?system=cll
+[RCLL]: https://sarahzrf.github.io/sequents/?system=rcll
 
 ## Usage
 ### Interaction
