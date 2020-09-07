@@ -9,6 +9,9 @@ body {
     justify-content: center;
     align-items: center;
 }
+#readme {
+  width: 50%;
+}
 .derivation {
     display: inline-block;
     margin-left: 10px;
@@ -56,6 +59,54 @@ body {
             if (e.target.classList.contains('clickable')) e.preventDefault();
         };
     </script>
+    <div id="readme" hidden>
+<h1>sequents</h1>
+<p>A blatant ripoff of <a href="http://logitext.mit.edu/main">Logitext</a>, with variants implementing the propositional
+fragments of systems LK, LJ, two-sided classical linear logic, and one-sided
+classical linear logic (both forms of CLL as presented <a href="http://llwiki.ens-lyon.fr/mediawiki/index.php/Sequent_calculus">here</a>, except
+that the one-sided version only allows the Axiom rule to be applied to atoms
+(this is currently a bug, not a feature 🙁)). Try it out: <a href="https://sarahzrf.github.io/sequents/?system=lk">LK</a>, <a href="https://sarahzrf.github.io/sequents/?system=lj">LJ</a>, <a href="https://sarahzrf.github.io/sequents/?system=cll">CLL</a>,
+<a href="https://sarahzrf.github.io/sequents/?system=rcll">RCLL</a>.</p>
+<p>NOTE: The {,R}CLL variant actually supports second-order quantifiers
+(basically, System F); need to document this.</p>
+<h2>Usage</h2>
+<h3>Interaction</h3>
+<p>Just like in Logitext, the fundamental interaction model is that you click on a
+formula to apply a rule introducing it. To apply the Axiom rule, left-click the
+turnstile (except in one-sided CLL, where you must click on the non-negated
+atom); to reset a subproof, right-click the turnstile.</p>
+<p>There are some special cases:</p>
+<ul>
+<li>To apply contraction in LK or LJ, right-click the formula.</li>
+<li>To apply weakening in LK or LJ, middle-click the formula or left-click it
+while holding Ctrl.</li>
+<li>When there is more than one applicable logical rule:<ul>
+<li>If the connective is <code>∧</code>, <code>∨</code>, <code>&amp;</code>, or <code>⊕</code>, click either the left or right
+subformula to choose between the two applicable rules.</li>
+<li>If the connective is an exponential, right click the formula to apply
+contraction, click the connective itself to apply weakening, and click the
+operand to apply dereliction.</li>
+</ul>
+</li>
+<li>When the rule requires the side formulas to be split between the premises
+(e.g., the left rule for <code>→</code>), the conclusion will enter a mode where
+clicking on side formulas toggles which premise they are distributed to. To
+choose a new formula to introduce, you will need to explicitly cancel this
+mode first by right-clicking the turnstile.</li>
+</ul>
+<h3>Syntax for entering goals</h3>
+<p>Goals take the form <code>A, ..., B |- C, ..., D</code> where <code>A, B, C, D</code> are formulas;
+empty lists are allowed on either side. You can also enter just <code>A</code> for <code>|- A</code>.
+Any sequence of alphanumeric characters can be an atomic formula. For LK and
+LJ, the connectives are <code>-&gt;</code>, <code>/\</code>, <code>\/</code>, and <code>~</code> (negation), from low to high
+precedence. For CLL, the connectives are <code>-o</code> (implication), <code>+</code>, <code>&amp;</code>
+(additives), <code>@</code>, <code>*</code> (multiplicatives), <code>~</code>, <code>!</code>, and <code>?</code>, from low to high
+precedence. CLL also allows units <code>1</code>, <code>F</code> (multiplicatives), <code>0</code>, and <code>T</code>
+(additives), which will not be parsed as atomic formulas.</p>
+<p>The parser is a bit janky, and you may have to use more parentheses than you
+should really need to (e.g., <code>~~P</code> needs to be <code>~(~P)</code>). Maybe I'll improve it
+someday...</p>
+    </div>
     <script src="app.js"></script>
 </body>
 </html>
