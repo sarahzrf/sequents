@@ -9,6 +9,9 @@ body {
     justify-content: center;
     align-items: center;
 }
+#readme {
+  width: 50%;
+}
 .derivation {
     display: inline-block;
     margin-left: 10px;
@@ -56,6 +59,9 @@ body {
             if (e.target.classList.contains('clickable')) e.preventDefault();
         };
     </script>
+    <div id="readme" hidden>
+      <!-- include contents of README.md here -->
+    </div>
     <script src="app.js"></script>
 </body>
 </html>

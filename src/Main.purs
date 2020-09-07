@@ -20,9 +20,13 @@ import Spork.PureApp as PureApp
 import Web.HTML
 import Web.HTML.Window
 import Web.HTML.Location
+import Web.HTML.HTMLDocument
+import Web.DOM.ParentNode
+import Web.DOM.Element hiding (toParentNode)
 import URI.Query as Q
 import URI.Extra.QueryPairs as QP
 import Text.Parsing.Parser as TP
+import Text.Parsing.Parser.String as TPS
 
 import LK as LK
 import LJ as LJ
@@ -34,10 +38,10 @@ main :: Effect Unit
 main = window >>= \win -> catchException (flip alert win <<< message) do
   loc <- location win
   params <- search loc
-  q <- either (\_ -> throw "no query string or bad query string") pure
-        (TP.runParser params Q.parser)
-  QP.QueryPairs qp <- either (\_ -> throw "could not parse query string") pure
-    (QP.parse pure pure q)
+  q <- either (\_ -> throw "bad query string") pure
+        (TP.runParser params (Q.parser <|> (mempty <$ TPS.eof)))
+  QP.QueryPairs qp <- either (\_ -> throw "could not parse query string")
+    pure (QP.parse pure pure q)
   let k = QP.keyFromString "system"
       mv = QP.valueToString <$> findMap (\(Tuple k' mv) ->
         if k' == k then mv else Nothing) qp
@@ -50,7 +54,16 @@ main = window >>= \win -> catchException (flip alert win <<< message) do
       PureApp.makeWithSelector {init: initCLL2, update, render} "body"
     Just "rcll" -> unit <$
       PureApp.makeWithSelector {init: initRCLL2, update, render} "body"
-    _ -> throw "unknown system"
+    Just _ -> throw "unknown system"
+    Nothing -> readme win
+
+readme :: Window -> Effect Unit
+readme win = do
+  pnode <- toParentNode <$> document win
+  mdiv <- querySelector (QuerySelector "#readme") pnode
+  case mdiv of
+    Just readmeDiv -> removeAttribute "hidden" readmeDiv
+    Nothing -> throw "missing readme?!"
 
 type Model form = {input :: String, prf :: D.Model form}
 
@@ -82,7 +95,7 @@ sequentParser = do
     guard (D.okInitial seq)
     pure seq
   where forms = map L.toUnfoldable $
-    skipSpaces *> (D.formParser unit `sepBy` char ',') <* skipSpaces
+          skipSpaces *> (D.formParser unit `sepBy` char ',') <* skipSpaces
 
 update :: forall form. D.Calculus form =>
   Model form -> Action form -> Model form
